@@ -57,7 +57,7 @@ interface FeatureFlags {
 const FEATURES: FeatureFlags = {
 	enableSlack: false,
 	enabledEvents: {
-		push: true, // Git pushes
+		push: false, // Git pushes
 		pull_request: true, // Pull request events
 		issues: true, // Issue events
 		discussion: false, // GitHub Discussions
