@@ -72,6 +72,20 @@ const getEventType = (request: Request): GitHubEventType | null => {
 	return eventHeader as GitHubEventType | null;
 };
 
+// Derive an env-var suffix from the request path so each GitHub webhook URL
+// can route to its own Discord/Slack destination.
+//   "/"          → ""           → DISCORD_WEBHOOK_URL          / SLACK_WEBHOOK_URL
+//   "/team-a"    → "TEAM_A"     → DISCORD_WEBHOOK_URL_TEAM_A   / SLACK_WEBHOOK_URL_TEAM_A
+//   "/repos/bot" → "REPOS_BOT"  → DISCORD_WEBHOOK_URL_REPOS_BOT
+const getRouteKey = (request: Request): string => {
+	const path = new URL(request.url).pathname;
+	return path.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase();
+};
+
+const resolveWebhook = (env: Record<string, string>, prefix: string, key: string): string | undefined => {
+	return key ? env[`${prefix}_${key}`] : env[prefix];
+};
+
 const isEventEnabled = (eventType: GitHubEventType | null): boolean => {
 	if (!eventType) return false;
 	return FEATURES.enabledEvents[eventType] || false;
@@ -245,13 +259,17 @@ export default {
 				return new Response('Invalid payload structure', { status: 400 });
 			}
 
-			// 🔹 Ensure Discord webhook URL is set
-			if (!env.DISCORD_WEBHOOK_URL) {
-				return new Response('Error: DISCORD_WEBHOOK_URL is not set', { status: 500 });
+			// 🔹 Resolve destination from the request path
+			const routeKey = getRouteKey(request);
+			const discordWebhookUrl = resolveWebhook(env, 'DISCORD_WEBHOOK_URL', routeKey);
+
+			if (!discordWebhookUrl) {
+				const varName = routeKey ? `DISCORD_WEBHOOK_URL_${routeKey}` : 'DISCORD_WEBHOOK_URL';
+				return new Response(`Error: ${varName} is not set`, { status: 500 });
 			}
 
 			// 🔹 Send message to Discord
-			const discordRes = await fetch(env.DISCORD_WEBHOOK_URL, {
+			const discordRes = await fetch(discordWebhookUrl, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(createDiscordEmbed(payload, eventType)),
@@ -263,10 +281,11 @@ export default {
 
 			// 🔹 Send to Slack if enabled
 			if (FEATURES.enableSlack) {
-				if (!env.SLACK_WEBHOOK_URL) {
-					console.warn('Slack webhook URL not set, skipping Slack notification');
+				const slackWebhookUrl = resolveWebhook(env, 'SLACK_WEBHOOK_URL', routeKey);
+				if (!slackWebhookUrl) {
+					console.warn('Slack webhook URL not set for this route, skipping Slack notification');
 				} else {
-					const slackRes = await fetch(env.SLACK_WEBHOOK_URL, {
+					const slackRes = await fetch(slackWebhookUrl, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify(createSlackMessage(payload, eventType)),
