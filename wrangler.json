@@ -13,5 +13,21 @@
 		"DISCORD_CHANNEL_CREATRGRID_RELEASES": "1568708410692739153",
 		"DISCORD_CHANNEL_BOT_LOGS": "1568708548605771797",
 		"DISCORD_CHANNEL_DOMAIN_ALERTS": "1568741669954654338"
+	},
+	"observability": {
+		"logs": {
+		"enabled": true,
+		"head_sampling_rate": 1,
+		"invocation_logs": true,
+		"persist": true
+		},
+		"traces": {
+		"enabled": false,
+		"head_sampling_rate": 1,
+		"persist": true
+		},
+		"issue_detection": {
+		"enabled": false
+		}
 	}
 }
