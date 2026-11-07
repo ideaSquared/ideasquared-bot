@@ -1,3 +1,5 @@
+import { BOT_LOGS_ENV_VAR, Env } from './config';
+
 const DISCORD_API = 'https://discord.com/api/v10';
 
 // Discord requires a descriptive User-Agent for bot requests.
@@ -32,5 +34,18 @@ export const postToChannel = async (token: string, channelId: string, body: unkn
 		}
 
 		throw new Error(`Discord ${res.status} posting to channel ${channelId}: ${await res.text().catch(() => '')}`);
+	}
+};
+
+// Best-effort error report to #bot-logs; never throws.
+export const logToBotLogs = async (env: Env, message: string): Promise<void> => {
+	console.error(message);
+	const token = env.DISCORD_BOT_TOKEN;
+	const channelId = env[BOT_LOGS_ENV_VAR];
+	if (!token || !channelId) return;
+	try {
+		await postToChannel(token, channelId, { content: `⚠️ ${message}`.slice(0, 2000) });
+	} catch (e) {
+		console.error('Failed to post to bot-logs', e);
 	}
 };

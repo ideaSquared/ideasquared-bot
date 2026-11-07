@@ -58,3 +58,7 @@ export const channelEnvVar = (project: Project, kind: ChannelKind): string =>
 export const secretEnvVar = (project: Project): string => `GITHUB_WEBHOOK_SECRET_${project.key}`;
 
 export const BOT_LOGS_ENV_VAR = 'DISCORD_CHANNEL_BOT_LOGS';
+
+// Domain watcher (cron): alerts on RDAP / aftermarket listing changes for this domain
+export const WATCHED_DOMAIN = 'ideasquared.com';
+export const DOMAIN_ALERTS_ENV_VAR = 'DISCORD_CHANNEL_DOMAIN_ALERTS';

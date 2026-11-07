@@ -1,5 +1,6 @@
-import { BOT_LOGS_ENV_VAR, ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
-import { postToChannel } from './discord';
+import { ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import { logToBotLogs, postToChannel } from './discord';
+import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
 
 export interface GitHubRepository {
@@ -144,19 +145,6 @@ const isEventEnabled = (eventType: GitHubEventType | null): eventType is GitHubE
 	return !!eventType && ENABLED_EVENTS[eventType] === true;
 };
 
-// Best-effort error report to #bot-logs; never throws.
-const logToBotLogs = async (env: Env, message: string): Promise<void> => {
-	console.error(message);
-	const token = env.DISCORD_BOT_TOKEN;
-	const channelId = env[BOT_LOGS_ENV_VAR];
-	if (!token || !channelId) return;
-	try {
-		await postToChannel(token, channelId, { content: `⚠️ ${message}`.slice(0, 2000) });
-	} catch (e) {
-		console.error('Failed to post to bot-logs', e);
-	}
-};
-
 const resolveChannels = (env: Env, project: Project, kinds: ChannelKind[]): { kind: ChannelKind; id: string }[] => {
 	const channels: { kind: ChannelKind; id: string }[] = [];
 	for (const kind of kinds) {
@@ -167,6 +155,12 @@ const resolveChannels = (env: Env, project: Project, kinds: ChannelKind[]): { ki
 };
 
 export default {
+	// Cron trigger (see wrangler.json): domain watcher
+	async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+		// KV binding doesn't fit Env's string index signature, so it's read separately
+		ctx.waitUntil(checkDomain(env, env as unknown as DomainBindings));
+	},
+
 	async fetch(request: Request, env: Env): Promise<Response> {
 		if (request.method !== 'POST') {
 			return new Response('Method Not Allowed', { status: 405 });

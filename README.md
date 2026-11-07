@@ -42,8 +42,30 @@ Channel IDs (not secret; `wrangler.json` `vars` or secrets):
 | `DISCORD_CHANNEL_CREATRGRID_GITHUB` | `1568708444318601386` |
 | `DISCORD_CHANNEL_CREATRGRID_RELEASES` | `1568708410692739153` |
 | `DISCORD_CHANNEL_BOT_LOGS` | `1568708548605771797` |
+| `DISCORD_CHANNEL_DOMAIN_ALERTS` | `1568741669954654338` |
 
 The bot needs **View Channel** and **Send Messages** (plus **Embed Links**) on each channel it posts to, granted via category permissions.
+
+## Domain watcher
+
+A cron trigger (every 30 minutes) watches `ideasquared.com` (`WATCHED_DOMAIN` in `src/config.ts`) and posts an **IDEASQUARED DOMAIN ALERT** to the domain alerts channel whenever something changes:
+
+- RDAP (Verisign): registration status, registrar, registration/expiry dates, nameservers. A 404 means the domain is unregistered → "Available for registration / Register immediately".
+- `redemption period` / `pending delete` statuses are flagged as urgent (the domain is about to drop).
+- Afternic listing (GoDaddy aftermarket): for-sale flag, buy-now price, minimum bid, seller. Best effort: if the page can't be fetched, `#bot-logs` is warned once and the last known listing is kept.
+
+The first run posts a baseline alert. The latest snapshot and a change history (last 500 entries) are kept in the `DOMAIN_WATCH` KV namespace under the `snapshot` and `history` keys:
+
+```bash
+npx wrangler kv key get --binding DOMAIN_WATCH history --remote
+```
+
+Setup:
+
+- `DISCORD_CHANNEL_DOMAIN_ALERTS` – channel ID for alerts (`wrangler.json` `vars`)
+- `DOMAIN_WATCH` KV namespace – created automatically on `wrangler deploy` (or create it with `npx wrangler kv namespace create DOMAIN_WATCH` and add the `id` to `wrangler.json`)
+
+Test the cron locally with `npx wrangler dev --test-scheduled`, then `curl "http://localhost:8787/__scheduled?cron=*/30+*+*+*+*"`.
 
 ## Adding a project
 
