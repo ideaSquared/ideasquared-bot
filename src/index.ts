@@ -220,6 +220,12 @@ export default {
 				return new Response(`Error: ${msg}`, { status: 500 });
 			}
 
+			// Partial config: still deliver to what's configured, but flag what's missing
+			const missing = EVENT_ROUTES[eventType].filter((k) => !channels.some((c) => c.kind === k));
+			if (missing.length > 0) {
+				await logToBotLogs(env, `${project.name} ${eventType}: missing ${missing.map((k) => channelEnvVar(project, k)).join(', ')}`);
+			}
+
 			const body = createDiscordEmbed(payload, eventType, project);
 			const results = await Promise.allSettled(channels.map((c) => postToChannel(token, c.id, body)));
 

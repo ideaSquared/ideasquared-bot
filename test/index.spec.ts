@@ -106,6 +106,23 @@ describe('ideaSquared bot', () => {
 		expect(postedChannels()).toContain('logs-id');
 	});
 
+	it('retries once after a 429, honouring retry_after', async () => {
+		let calls = 0;
+		fetchMock.mockImplementation(async () =>
+			calls++ === 0 ? new Response(JSON.stringify({ retry_after: 0 }), { status: 429 }) : new Response('{}', { status: 200 })
+		);
+		const res = await send('/ads', 'pull_request', pr);
+		expect(res.status).toBe(200);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	it('delivers to configured channels and alerts bot-logs when one is missing', async () => {
+		const { DISCORD_CHANNEL_ADS_RELEASES: _omit, ...partial } = env;
+		const res = await send('/ads', 'release', release, SECRET, partial);
+		expect(res.status).toBe(200);
+		expect(postedChannels().sort()).toEqual(['ads-github-id', 'logs-id']);
+	});
+
 	it('502 when every channel fails', async () => {
 		fetchMock.mockImplementation(async () => new Response('nope', { status: 500 }));
 		expect((await send('/ads', 'pull_request', pr)).status).toBe(502);
