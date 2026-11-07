@@ -195,6 +195,30 @@ export default {
 		}
 
 		try {
+			// GitHub sends a ping when a webhook is created; confirm it in the project's github channel
+			if (request.headers.get('X-GitHub-Event') === 'ping') {
+				const channelId = env[channelEnvVar(project, 'github')];
+				if (!channelId) {
+					const msg = `No channel configured for ${project.name} ping (expected ${channelEnvVar(project, 'github')})`;
+					await logToBotLogs(env, msg);
+					return new Response(`Error: ${msg}`, { status: 500 });
+				}
+				const ping: GitHubWebhookPayload & { zen?: string } = JSON.parse(rawBody);
+				await postToChannel(token, channelId, {
+					embeds: [
+						{
+							title: `${project.name}${ping.repository?.name ? ` / ${ping.repository.name}` : ''} - Webhook initialised`,
+							url: ping.repository?.html_url,
+							color: 0x2eb67d,
+							description: ping.zen ? `_${ping.zen}_` : undefined,
+							timestamp: new Date().toISOString(),
+							footer: { text: 'ideaSquared Bot' },
+						},
+					],
+				});
+				return new Response('Pong', { status: 200 });
+			}
+
 			const eventType = getEventType(request);
 			if (!isEventEnabled(eventType)) {
 				return new Response('Event type not enabled', { status: 200 });

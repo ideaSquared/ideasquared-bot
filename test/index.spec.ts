@@ -93,6 +93,22 @@ describe('ideaSquared bot', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('accepts ping and announces in the github channel', async () => {
+		const res = await send('/ads', 'ping', { zen: 'Keep it logically awesome.', hook_id: 1, ...base });
+		expect(res.status).toBe(200);
+		expect(postedChannels()).toEqual(['ads-github-id']);
+	});
+
+	it('accepts ping without a repository (org webhook)', async () => {
+		expect((await send('/ads', 'ping', { zen: 'z', hook_id: 1 })).status).toBe(200);
+		expect(postedChannels()).toEqual(['ads-github-id']);
+	});
+
+	it('401 for ping with bad signature', async () => {
+		expect((await send('/ads', 'ping', { zen: 'z' }, 'wrong-secret')).status).toBe(401);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it('400 for invalid payload', async () => {
 		expect((await send('/ads', 'issues', { invalid: 'data' })).status).toBe(400);
 	});
