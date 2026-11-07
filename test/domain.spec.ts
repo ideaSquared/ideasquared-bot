@@ -120,6 +120,25 @@ describe('domain watcher', () => {
 		expect(posts('domain-id')[0].embeds[0].fields.find((f: { name: string }) => f.name === 'Changes').value).toContain('$5,000 → $4,000');
 	});
 
+	it('announces the listing when it first succeeds after a failed baseline', async () => {
+		const kv = fakeKv();
+		listingRes = () => new Response('blocked', { status: 403 });
+		await checkDomain(env, { DOMAIN_WATCH: kv });
+		expect(JSON.parse(kv.store.get('snapshot')!).listing).toBeNull();
+
+		listingRes = () => new Response(afternic());
+		fetchMock.mockClear();
+		await checkDomain(env, { DOMAIN_WATCH: kv });
+		const changes = posts('domain-id')[0].embeds[0].fields.find((f: { name: string }) => f.name === 'Changes').value;
+		expect(changes).toBe('Listing: none → for sale, buy now $5,000, min bid $500, seller seller');
+		expect(JSON.parse(kv.store.get('history')!)).toHaveLength(2);
+
+		// Subsequent unchanged runs stay quiet
+		fetchMock.mockClear();
+		await checkDomain(env, { DOMAIN_WATCH: kv });
+		expect(posts('domain-id')).toHaveLength(0);
+	});
+
 	it('reports RDAP errors to bot-logs without alerting or overwriting state', async () => {
 		const kv = fakeKv();
 		rdapRes = () => new Response('', { status: 503 });

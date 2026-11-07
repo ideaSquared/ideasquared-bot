@@ -98,7 +98,11 @@ export const diffSnapshots = (prev: Snapshot, next: Snapshot): string[] => {
 	cmp('Registration date', prev.registeredAt ?? 'none', next.registeredAt ?? 'none');
 	cmp('Expiry', prev.expiresAt ?? 'none', next.expiresAt ?? 'none');
 	cmp('Nameservers', list(prev.nameservers), list(next.nameservers));
-	if (prev.listing && next.listing) {
+	// First successful listing fetch (e.g. after the baseline run failed) is itself a change
+	if (!prev.listing && next.listing) {
+		const l = next.listing;
+		changes.push(`Listing: none → ${l.isForSale ? 'for sale' : 'not for sale'}, buy now ${money(l.buyNow)}, min bid ${money(l.minBid)}, seller ${l.seller ?? 'none'}`);
+	} else if (prev.listing && next.listing) {
 		cmp('For sale', String(prev.listing.isForSale), String(next.listing.isForSale));
 		cmp('Buy now price', money(prev.listing.buyNow), money(next.listing.buyNow));
 		cmp('Minimum bid', money(prev.listing.minBid), money(next.listing.minBid));
