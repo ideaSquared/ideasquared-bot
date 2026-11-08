@@ -21,9 +21,19 @@ export const PROJECTS: Record<string, Project> = {
 	ads: { key: 'ADS', name: 'AdoptDontShop' },
 	pairflix: { key: 'PAIRFLIX', name: 'Pairflix' },
 	creatrgrid: { key: 'CREATRGRID', name: 'CreatrGrid' },
+	gaminginit: { key: 'GAMINGINIT', name: 'GamingInit' },
 };
 
-export type GitHubEventType = 'push' | 'pull_request' | 'issues' | 'discussion' | 'star' | 'fork' | 'release';
+export type GitHubEventType =
+	| 'push'
+	| 'pull_request'
+	| 'issues'
+	| 'discussion'
+	| 'star'
+	| 'fork'
+	| 'release'
+	| 'deployment_status'
+	| 'check_run';
 
 // Which channels each event goes to. Only releases are public; everything else stays private.
 export const EVENT_ROUTES: Record<GitHubEventType, ChannelKind[]> = {
@@ -34,6 +44,8 @@ export const EVENT_ROUTES: Record<GitHubEventType, ChannelKind[]> = {
 	star: ['github'],
 	fork: ['github'],
 	release: ['releases', 'github'],
+	deployment_status: ['github'],
+	check_run: ['github'],
 };
 
 // Configure which events you want to receive notifications for
@@ -45,7 +57,12 @@ export const ENABLED_EVENTS: Record<GitHubEventType, boolean> = {
 	star: false, // Repository stars
 	fork: false, // Repository forks
 	release: true, // New releases
+	deployment_status: true, // GitHub Deployments finishing (e.g. Actions deploy job with an environment)
+	check_run: true, // Cloudflare Workers Builds finishing (other check runs are ignored)
 };
+
+// GitHub App that reports Cloudflare Workers Builds as check runs
+export const CLOUDFLARE_BUILDS_APP_SLUG = 'cloudflare-workers-and-pages';
 
 export interface Env {
 	DISCORD_BOT_TOKEN?: string;
