@@ -1,4 +1,4 @@
-import { ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
 import { logToBotLogs, postToChannel } from './discord';
 import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
@@ -53,7 +53,37 @@ export interface GitHubWebhookPayload {
 		body?: string | null;
 		prerelease?: boolean;
 	};
+	deployment_status?: {
+		state: string;
+		environment?: string;
+		target_url?: string | null;
+		log_url?: string | null;
+		environment_url?: string | null;
+	};
+	deployment?: {
+		sha: string;
+		ref?: string;
+		environment?: string;
+	};
+	check_run?: {
+		name: string;
+		head_sha: string;
+		conclusion?: string | null;
+		html_url?: string;
+		details_url?: string | null;
+		app?: { slug?: string };
+	};
 }
+
+// Final deployment states worth announcing (pending / queued / in_progress are skipped)
+const FINAL_DEPLOYMENT_STATES = ['success', 'failure', 'error'];
+
+const deployOutcome = (payload: GitHubWebhookPayload, eventType: GitHubEventType): string | undefined =>
+	eventType === 'deployment_status'
+		? payload.deployment_status?.state
+		: eventType === 'check_run'
+			? payload.check_run?.conclusion ?? undefined
+			: undefined;
 
 const createDiscordEmbed = (payload: GitHubWebhookPayload, eventType: GitHubEventType, project: Project) => {
 	const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : 'unknown';
@@ -97,17 +127,41 @@ const createDiscordEmbed = (payload: GitHubWebhookPayload, eventType: GitHubEven
 						value: `[#${payload.discussion?.number}](${payload.discussion?.html_url}): ${payload.discussion?.title}`,
 					},
 				];
+			case 'deployment_status': {
+				const status = payload.deployment_status;
+				const link = status?.log_url || status?.target_url;
+				return [
+					{ name: 'Environment', value: status?.environment || payload.deployment?.environment || 'unknown', inline: true },
+					{ name: 'State', value: status?.state || 'unknown', inline: true },
+					{ name: 'Commit', value: `\`${payload.deployment?.sha.substring(0, 7)}\``, inline: true },
+					...(link ? [{ name: 'Logs', value: link }] : []),
+					...(status?.environment_url ? [{ name: 'URL', value: status.environment_url }] : []),
+				];
+			}
+			case 'check_run': {
+				const run = payload.check_run;
+				const link = run?.details_url || run?.html_url;
+				return [
+					{ name: 'Build', value: run?.name || 'unknown', inline: true },
+					{ name: 'Conclusion', value: run?.conclusion || 'unknown', inline: true },
+					{ name: 'Commit', value: `\`${run?.head_sha.substring(0, 7)}\``, inline: true },
+					...(link ? [{ name: 'Logs', value: link }] : []),
+				];
+			}
 			default:
 				return [];
 		}
 	};
+
+	const outcome = deployOutcome(payload, eventType);
+	const color = outcome === undefined ? 0x2b82ea : outcome === 'success' ? 0x2eb67d : 0xe01e5a;
 
 	return {
 		embeds: [
 			{
 				title: `${project.name} / ${payload.repository?.name} - ${eventType.toUpperCase()} Event`,
 				url: payload.repository?.html_url,
-				color: 0x2b82ea,
+				color,
 				author: {
 					name: payload.sender?.login,
 					url: payload.sender?.html_url,
@@ -227,6 +281,19 @@ export default {
 			// Only announce a release once, when it is published
 			if (eventType === 'release' && payload.action !== 'published') {
 				return new Response('Release action ignored', { status: 200 });
+			}
+
+			// Only announce deployments once they finish
+			if (eventType === 'deployment_status' && !FINAL_DEPLOYMENT_STATES.includes(payload.deployment_status?.state ?? '')) {
+				return new Response('Deployment state ignored', { status: 200 });
+			}
+
+			// Only Cloudflare Workers Builds check runs, once completed (CI test runs etc. are ignored)
+			if (
+				eventType === 'check_run' &&
+				(payload.action !== 'completed' || payload.check_run?.app?.slug !== CLOUDFLARE_BUILDS_APP_SLUG)
+			) {
+				return new Response('Check run ignored', { status: 200 });
 			}
 
 			const channels = resolveChannels(env, project, EVENT_ROUTES[eventType]);

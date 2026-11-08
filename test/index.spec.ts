@@ -144,6 +144,49 @@ describe('ideaSquared bot', () => {
 		expect((await send('/ads', 'pull_request', pr)).status).toBe(502);
 	});
 
+	describe('deployments', () => {
+		const deploy = (state: string) => ({
+			...base,
+			action: 'created',
+			deployment: { sha: 'abcdef1234', environment: 'production' },
+			deployment_status: { state, environment: 'production', log_url: 'https://logs' },
+		});
+		const build = (action: string, slug: string, conclusion: string | null = 'success') => ({
+			...base,
+			action,
+			check_run: { name: 'Workers Builds: site', head_sha: 'abcdef1234', conclusion, details_url: 'https://dash', app: { slug } },
+		});
+		const embed = () => JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string).embeds[0];
+
+		it('posts finished deployment_status to the github channel, green on success', async () => {
+			expect((await send('/ads', 'deployment_status', deploy('success'))).status).toBe(200);
+			expect(postedChannels()).toEqual(['ads-github-id']);
+			expect(embed().color).toBe(0x2eb67d);
+		});
+
+		it('posts failed deployments in red', async () => {
+			await send('/ads', 'deployment_status', deploy('failure'));
+			expect(embed().color).toBe(0xe01e5a);
+		});
+
+		it('ignores in-progress deployment states', async () => {
+			for (const state of ['pending', 'queued', 'in_progress']) await send('/ads', 'deployment_status', deploy(state));
+			expect(fetchMock).not.toHaveBeenCalled();
+		});
+
+		it('posts completed Cloudflare Workers Builds check runs', async () => {
+			await send('/ads', 'check_run', build('completed', 'cloudflare-workers-and-pages', 'failure'));
+			expect(postedChannels()).toEqual(['ads-github-id']);
+			expect(embed().color).toBe(0xe01e5a);
+		});
+
+		it('ignores other check runs and unfinished builds', async () => {
+			await send('/ads', 'check_run', build('completed', 'github-actions'));
+			await send('/ads', 'check_run', build('created', 'cloudflare-workers-and-pages', null));
+			expect(fetchMock).not.toHaveBeenCalled();
+		});
+	});
+
 	it('500 when the project has no channel configured', async () => {
 		const { DISCORD_CHANNEL_ADS_GITHUB: _omit, ...partial } = env;
 		expect((await send('/ads', 'pull_request', pr, SECRET, partial)).status).toBe(500);

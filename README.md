@@ -11,6 +11,7 @@ One GitHub webhook per project, pointing at `https://<worker>/<project>`:
 | `/ads` | AdoptDontShop |
 | `/pairflix` | Pairflix |
 | `/creatrgrid` | CreatrGrid |
+| `/gaminginit` | GamingInit (`gaminginit` + `gaminginit-bot` repos share this webhook) |
 
 Events → channels (see `src/config.ts`):
 
@@ -18,6 +19,10 @@ Events → channels (see `src/config.ts`):
 | --- | --- |
 | `pull_request`, `issues` (and push/discussion/star/fork if enabled) | `<project>-github` (private) |
 | `release` (published) | `<project>-releases` (public) + `<project>-github` |
+| `deployment_status` (success / failure / error) | `<project>-github` |
+| `check_run` (completed, Cloudflare Workers Builds only) | `<project>-github` |
+
+Deployments: subscribe the webhook to **Deployment statuses** if the repo deploys via a GitHub Actions job with an `environment`, or **Check runs** if it deploys via Cloudflare Workers Builds.
 
 Failures and misconfiguration are reported to `#bot-logs`.
 
@@ -26,7 +31,7 @@ Failures and misconfiguration are reported to `#bot-logs`.
 Secrets (`wrangler secret put <NAME>`):
 
 - `DISCORD_BOT_TOKEN` – shared bot token
-- `GITHUB_WEBHOOK_SECRET_<PROJECT>` – per-project GitHub webhook secret (`ADS`, `PAIRFLIX`, `CREATRGRID`); set the same value in that repo's webhook settings. Requests without a valid `X-Hub-Signature-256` are rejected.
+- `GITHUB_WEBHOOK_SECRET_<PROJECT>` – per-project GitHub webhook secret (`ADS`, `PAIRFLIX`, `CREATRGRID`, `GAMINGINIT`); set the same value in that repo's webhook settings. Requests without a valid `X-Hub-Signature-256` are rejected.
 
 Channel IDs (not secret; `wrangler.json` `vars` or secrets):
 
@@ -41,6 +46,8 @@ Channel IDs (not secret; `wrangler.json` `vars` or secrets):
 | `DISCORD_CHANNEL_PAIRFLIX_RELEASES` | `1568708218782482442` |
 | `DISCORD_CHANNEL_CREATRGRID_GITHUB` | `1568708444318601386` |
 | `DISCORD_CHANNEL_CREATRGRID_RELEASES` | `1568708410692739153` |
+| `DISCORD_CHANNEL_GAMINGINIT_GITHUB` | `1568967721838977064` |
+| `DISCORD_CHANNEL_GAMINGINIT_RELEASES` | `1568967675726790677` |
 | `DISCORD_CHANNEL_BOT_LOGS` | `1568708548605771797` |
 | `DISCORD_CHANNEL_DOMAIN_ALERTS` | `1568741669954654338` |
 
