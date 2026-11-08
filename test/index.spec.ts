@@ -183,9 +183,13 @@ describe('ideaSquared bot', () => {
 					put: async (key: string, value: string) => {
 						store.set(key, value);
 					},
+					delete: async (key: string) => {
+						store.delete(key);
+					},
 				};
 			};
-			const withKv = () => ({ ...env, DEPLOY_STATUS: fakeKv() }) as unknown as Record<string, string>;
+			const withKv = (kv: unknown = fakeKv()) => ({ ...env, DEPLOY_STATUS: kv }) as unknown as Record<string, string>;
+			const discordPosts = () => fetchMock.mock.calls.filter(([url]) => String(url).includes('/channels/ads-github-id/'));
 
 			it('shows the description as the result', async () => {
 				await send('/ads', 'deployment_status', described(7, 'failure', 'Health check failed; rolled back to f0e1d2c, which is healthy.'));
@@ -205,6 +209,40 @@ describe('ideaSquared bot', () => {
 				await send('/ads', 'deployment_status', described(7, 'success', 'Deployed abcdef1; health checks passed.'), SECRET, e);
 				await send('/ads', 'deployment_status', described(8, 'failure'), SECRET, e);
 				expect(fetchMock).toHaveBeenCalledTimes(2);
+			});
+
+			it('skips the undescribed status even while the described one is still being delivered', async () => {
+				const e = withKv();
+				let release: () => void = () => {};
+				fetchMock.mockImplementationOnce(
+					() => new Promise<Response>((resolve) => (release = () => resolve(new Response('{}', { status: 200 }))))
+				);
+				const first = send('/ads', 'deployment_status', described(7, 'failure', 'Health check failed; rolled back to f0e1d2c, which is healthy.'), SECRET, e);
+				await new Promise((r) => setTimeout(r, 10));
+				const second = await send('/ads', 'deployment_status', described(7, 'failure'), SECRET, e);
+				release();
+				expect((await first).status).toBe(200);
+				expect(second.status).toBe(200);
+				expect(discordPosts()).toHaveLength(1);
+			});
+
+			it('still posts the undescribed status when the described one could not be delivered', async () => {
+				const e = withKv();
+				fetchMock.mockImplementation(async (url) =>
+					String(url).includes('/channels/ads-github-id/') && fetchMock.mock.calls.filter(([u]) => String(u).includes('/channels/ads-github-id/')).length === 1
+						? new Response('nope', { status: 500 })
+						: new Response('{}', { status: 200 })
+				);
+				expect((await send('/ads', 'deployment_status', described(7, 'failure', 'Deploy failed before the health check. See the logs.'), SECRET, e)).status).toBe(502);
+				expect((await send('/ads', 'deployment_status', described(7, 'failure'), SECRET, e)).status).toBe(200);
+				expect(discordPosts()).toHaveLength(2);
+			});
+
+			it('still delivers, and reports success, when the KV write fails', async () => {
+				const kv = { ...fakeKv(), put: async () => Promise.reject(new Error('KV unavailable')) };
+				const res = await send('/ads', 'deployment_status', described(7, 'success', 'Deployed abcdef1; health checks passed.'), SECRET, withKv(kv));
+				expect(res.status).toBe(200);
+				expect(discordPosts()).toHaveLength(1);
 			});
 
 			it('posts both when the DEPLOY_STATUS KV binding is missing', async () => {

@@ -83,10 +83,24 @@ const FINAL_DEPLOYMENT_STATES = ['success', 'failure', 'error'];
 // A deploy workflow can post its own final status with a description (what
 // happened, e.g. "rolled back to <sha>") before the job ends; GitHub then adds
 // its own undescribed final status for the same deployment. The described one
-// is remembered here so the second is not posted again. Optional: without the
-// binding, both are posted.
-export type DeploymentBindings = { DEPLOY_STATUS?: Pick<KVNamespace, 'get' | 'put'> };
+// is remembered here so the second is not posted again. It is recorded before
+// the Discord post (so an undescribed status arriving mid-delivery is still
+// skipped) and cleared if every delivery fails (so that status still gets
+// through). KV errors are logged, never fatal. Optional: without the binding,
+// both are posted.
+export type DeploymentBindings = { DEPLOY_STATUS?: Pick<KVNamespace, 'get' | 'put' | 'delete'> };
 const REPORTED_TTL_SECONDS = 60 * 60 * 24;
+
+// Runs a KV operation; on failure logs to #bot-logs and returns false.
+const kvSafely = async (env: Env, what: string, op: () => Promise<unknown>): Promise<boolean> => {
+	try {
+		await op();
+		return true;
+	} catch (error) {
+		await logToBotLogs(env, `${what} failed: ${error instanceof Error ? error.message : String(error)}`);
+		return false;
+	}
+};
 
 const reportedKey = (payload: GitHubWebhookPayload): string | undefined =>
 	payload.deployment?.id === undefined ? undefined : `reported:${payload.repository?.name}:${payload.deployment.id}`;
@@ -305,7 +319,15 @@ export default {
 			}
 
 			const deploymentKey = eventType === 'deployment_status' ? reportedKey(payload) : undefined;
-			if (deploymentKey && deploymentKv && !payload.deployment_status?.description && (await deploymentKv.get(deploymentKey))) {
+			const alreadyReported =
+				!!deploymentKey &&
+				!!deploymentKv &&
+				!payload.deployment_status?.description &&
+				(await deploymentKv.get(deploymentKey).catch(async (error: unknown) => {
+					await logToBotLogs(env, `${project.name} deployment record read failed: ${error instanceof Error ? error.message : String(error)}`);
+					return null;
+				})) !== null;
+			if (alreadyReported) {
 				return new Response('Deployment already reported', { status: 200 });
 			}
 
@@ -332,6 +354,14 @@ export default {
 				await logToBotLogs(env, `${project.name} ${eventType}: missing ${missing.map((k) => channelEnvVar(project, k)).join(', ')}`);
 			}
 
+			const claimed =
+				!!deploymentKey &&
+				!!deploymentKv &&
+				!!payload.deployment_status?.description &&
+				(await kvSafely(env, `${project.name} deployment record`, () =>
+					deploymentKv.put(deploymentKey, '1', { expirationTtl: REPORTED_TTL_SECONDS })
+				));
+
 			const body = createDiscordEmbed(payload, eventType, project);
 			const results = await Promise.allSettled(channels.map((c) => postToChannel(token, c.id, body)));
 
@@ -340,11 +370,10 @@ export default {
 				await logToBotLogs(env, `${project.name} ${eventType} delivery failed — ${failures.join('; ')}`);
 			}
 			if (failures.length === channels.length) {
+				if (claimed && deploymentKey && deploymentKv) {
+					await kvSafely(env, `${project.name} deployment record`, () => deploymentKv.delete(deploymentKey));
+				}
 				return new Response('Error sending message to Discord', { status: 502 });
-			}
-
-			if (deploymentKey && deploymentKv && payload.deployment_status?.description) {
-				await deploymentKv.put(deploymentKey, '1', { expirationTtl: REPORTED_TTL_SECONDS });
 			}
 
 			return new Response('Webhook processed successfully!', { status: 200 });
