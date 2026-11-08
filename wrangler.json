@@ -3,7 +3,7 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2024-02-05",
 	"triggers": { "crons": ["*/30 * * * *"] },
-	"kv_namespaces": [{ "binding": "DOMAIN_WATCH" }],
+	"kv_namespaces": [{ "binding": "DOMAIN_WATCH" }, { "binding": "DEPLOY_STATUS" }],
 	"vars": {
 		"DISCORD_CHANNEL_ADS_GITHUB": "1568708022765883533",
 		"DISCORD_CHANNEL_ADS_RELEASES": "1568707993326067864",

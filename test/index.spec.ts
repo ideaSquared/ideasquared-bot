@@ -169,6 +169,51 @@ describe('ideaSquared bot', () => {
 			expect(embed().color).toBe(0xe01e5a);
 		});
 
+		describe('described statuses (e.g. adopt-dont-shop deploy.yml after an auto-rollback)', () => {
+			const described = (id: number, state: string, description?: string) => ({
+				...base,
+				action: 'created',
+				deployment: { id, sha: 'abcdef1234', environment: 'staging' },
+				deployment_status: { state, environment: 'staging', log_url: 'https://logs', ...(description ? { description } : {}) },
+			});
+			const fakeKv = () => {
+				const store = new Map<string, string>();
+				return {
+					get: async (key: string) => store.get(key) ?? null,
+					put: async (key: string, value: string) => {
+						store.set(key, value);
+					},
+				};
+			};
+			const withKv = () => ({ ...env, DEPLOY_STATUS: fakeKv() }) as unknown as Record<string, string>;
+
+			it('shows the description as the result', async () => {
+				await send('/ads', 'deployment_status', described(7, 'failure', 'Health check failed; rolled back to f0e1d2c, which is healthy.'));
+				expect(embed().fields).toContainEqual({ name: 'Result', value: 'Health check failed; rolled back to f0e1d2c, which is healthy.' });
+			});
+
+			it("skips GitHub's own undescribed status once the deployment was reported with a description", async () => {
+				const e = withKv();
+				await send('/ads', 'deployment_status', described(7, 'failure', 'Health check failed; rolled back to f0e1d2c, which is healthy.'), SECRET, e);
+				const res = await send('/ads', 'deployment_status', described(7, 'failure'), SECRET, e);
+				expect(res.status).toBe(200);
+				expect(fetchMock).toHaveBeenCalledTimes(1);
+			});
+
+			it('still posts an undescribed status when nothing was reported for that deployment', async () => {
+				const e = withKv();
+				await send('/ads', 'deployment_status', described(7, 'success', 'Deployed abcdef1; health checks passed.'), SECRET, e);
+				await send('/ads', 'deployment_status', described(8, 'failure'), SECRET, e);
+				expect(fetchMock).toHaveBeenCalledTimes(2);
+			});
+
+			it('posts both when the DEPLOY_STATUS KV binding is missing', async () => {
+				await send('/ads', 'deployment_status', described(7, 'failure', 'Deploy failed before the health check. See the logs.'));
+				await send('/ads', 'deployment_status', described(7, 'failure'));
+				expect(fetchMock).toHaveBeenCalledTimes(2);
+			});
+		});
+
 		it('ignores in-progress deployment states', async () => {
 			for (const state of ['pending', 'queued', 'in_progress']) await send('/ads', 'deployment_status', deploy(state));
 			expect(fetchMock).not.toHaveBeenCalled();

@@ -59,8 +59,10 @@ export interface GitHubWebhookPayload {
 		target_url?: string | null;
 		log_url?: string | null;
 		environment_url?: string | null;
+		description?: string | null;
 	};
 	deployment?: {
+		id?: number;
 		sha: string;
 		ref?: string;
 		environment?: string;
@@ -77,6 +79,17 @@ export interface GitHubWebhookPayload {
 
 // Final deployment states worth announcing (pending / queued / in_progress are skipped)
 const FINAL_DEPLOYMENT_STATES = ['success', 'failure', 'error'];
+
+// A deploy workflow can post its own final status with a description (what
+// happened, e.g. "rolled back to <sha>") before the job ends; GitHub then adds
+// its own undescribed final status for the same deployment. The described one
+// is remembered here so the second is not posted again. Optional: without the
+// binding, both are posted.
+export type DeploymentBindings = { DEPLOY_STATUS?: Pick<KVNamespace, 'get' | 'put'> };
+const REPORTED_TTL_SECONDS = 60 * 60 * 24;
+
+const reportedKey = (payload: GitHubWebhookPayload): string | undefined =>
+	payload.deployment?.id === undefined ? undefined : `reported:${payload.repository?.name}:${payload.deployment.id}`;
 
 const deployOutcome = (payload: GitHubWebhookPayload, eventType: GitHubEventType): string | undefined =>
 	eventType === 'deployment_status'
@@ -134,6 +147,7 @@ const createDiscordEmbed = (payload: GitHubWebhookPayload, eventType: GitHubEven
 					{ name: 'Environment', value: status?.environment || payload.deployment?.environment || 'unknown', inline: true },
 					{ name: 'State', value: status?.state || 'unknown', inline: true },
 					{ name: 'Commit', value: `\`${payload.deployment?.sha.substring(0, 7)}\``, inline: true },
+					...(status?.description ? [{ name: 'Result', value: status.description }] : []),
 					...(link ? [{ name: 'Logs', value: link }] : []),
 					...(status?.environment_url ? [{ name: 'URL', value: status.environment_url }] : []),
 				];
@@ -216,6 +230,8 @@ export default {
 	},
 
 	async fetch(request: Request, env: Env): Promise<Response> {
+		// KV binding doesn't fit Env's string index signature, so it's read separately
+		const deploymentKv = (env as unknown as DeploymentBindings).DEPLOY_STATUS;
 		if (request.method !== 'POST') {
 			return new Response('Method Not Allowed', { status: 405 });
 		}
@@ -288,6 +304,11 @@ export default {
 				return new Response('Deployment state ignored', { status: 200 });
 			}
 
+			const deploymentKey = eventType === 'deployment_status' ? reportedKey(payload) : undefined;
+			if (deploymentKey && deploymentKv && !payload.deployment_status?.description && (await deploymentKv.get(deploymentKey))) {
+				return new Response('Deployment already reported', { status: 200 });
+			}
+
 			// Only Cloudflare Workers Builds check runs, once completed (CI test runs etc. are ignored)
 			if (
 				eventType === 'check_run' &&
@@ -320,6 +341,10 @@ export default {
 			}
 			if (failures.length === channels.length) {
 				return new Response('Error sending message to Discord', { status: 502 });
+			}
+
+			if (deploymentKey && deploymentKv && payload.deployment_status?.description) {
+				await deploymentKv.put(deploymentKey, '1', { expirationTtl: REPORTED_TTL_SECONDS });
 			}
 
 			return new Response('Webhook processed successfully!', { status: 200 });

@@ -24,6 +24,8 @@ Events → channels (see `src/config.ts`):
 
 Deployments: subscribe the webhook to **Deployment statuses** if the repo deploys via a GitHub Actions job with an `environment`, or **Check runs** if it deploys via Cloudflare Workers Builds.
 
+A deploy workflow can post its own final deployment status with a `description` (adopt-dont-shop's `deploy.yml` does, e.g. "Health check failed; rolled back to f0e1d2c, which is healthy."). The bot shows it as **Result**, and remembers that deployment in the `DEPLOY_STATUS` KV namespace for a day, so GitHub's own undescribed final status for it is not posted a second time. Without the binding, both are posted.
+
 Failures and misconfiguration are reported to `#bot-logs`.
 
 ## Configuration
@@ -71,6 +73,7 @@ Setup:
 
 - `DISCORD_CHANNEL_DOMAIN_ALERTS` – channel ID for alerts (`wrangler.json` `vars`)
 - `DOMAIN_WATCH` KV namespace – created automatically on `wrangler deploy` (or create it with `npx wrangler kv namespace create DOMAIN_WATCH` and add the `id` to `wrangler.json`)
+- `DEPLOY_STATUS` KV namespace (deployment de-duplication, see Routing) – created the same way
 
 Test the cron locally with `npx wrangler dev --test-scheduled`, then `curl "http://localhost:8787/__scheduled?cron=*/30+*+*+*+*"`.
 
