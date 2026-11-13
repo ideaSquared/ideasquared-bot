@@ -1,0 +1,28 @@
+# `ship rollback <product>` starts this: shipper redeploys an earlier commit that was live in the
+# environment, through the normal pipeline (build, deploy, health check, Discord).
+name: Ship rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to roll back
+        required: true
+        type: string
+      sha:
+        description: Commit to deploy
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    permissions:
+      contents: read
+      checks: read
+      deployments: write
+    uses: ideaSquared/shipper/.github/workflows/deploy.yml@v1
+    with:
+      environment: ${{ inputs.environment }}
+      sha: ${{ inputs.sha }}
+      rollback: true
+    secrets: inherit
