@@ -45,6 +45,13 @@ beforeEach(() => {
 });
 
 describe('ideaSquared bot', () => {
+	it('answers GET /health so deploys can check the Worker is up', async () => {
+		const res = await worker.fetch(new Request('http://example.com/health', { method: 'GET' }), env);
+		expect(res.status).toBe(200);
+		expect(await res.text()).toBe('ok');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it('405 for non-POST', async () => {
 		const res = await worker.fetch(new Request('http://example.com/ads', { method: 'GET' }), env);
 		expect(res.status).toBe(405);
