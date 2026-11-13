@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyReport, renderBoard, type BoardState } from '../src/board';
+import { env as testEnv, reset, runInDurableObject } from 'cloudflare:test';
+import { applyReport, renderBoard, type BoardBindings, type BoardState, type ShipBoard } from '../src/board';
 import worker from '../src/index';
 import type { ShipReport } from '../src/ship';
 
@@ -86,19 +87,18 @@ const sign = async (body: string) => {
 	return 'sha256=' + [...sig].map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
-const fakeKv = () => {
-	const store = new Map<string, string>();
-	return {
-		store,
-		get: async (key: string) => {
-			const value = store.get(key);
-			return value === undefined ? null : JSON.parse(value);
-		},
-		put: async (key: string, value: string) => {
-			store.set(key, value);
-		},
-	};
+// The real board Durable Object from the test runtime (bound in wrangler.json), wiped before each test.
+// cloudflare:test types its env from the empty generated interface, so the binding is typed here.
+const SHIP_BOARD = (testEnv as unknown as Required<BoardBindings>).SHIP_BOARD;
+const board = {
+	namespace: SHIP_BOARD,
+	seed: (state: BoardState) => runInDurableObject(SHIP_BOARD.getByName('board'), (_o: ShipBoard, ctx) => ctx.storage.put('ship-board', state)),
+	saved: () => runInDurableObject(SHIP_BOARD.getByName('board'), (_o: ShipBoard, ctx) => ctx.storage.get<BoardState>('ship-board')),
 };
+
+beforeEach(async () => {
+	await reset();
+});
 
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
@@ -108,7 +108,7 @@ beforeEach(() => {
 
 const send = async (env: Record<string, unknown>, payload: ShipReport) => {
 	const body = JSON.stringify(payload);
-	// The worker reads KV bindings off the same env object as its string vars.
+	// The worker reads bindings off the same env object as its string vars.
 	const e = env as unknown as Record<string, string>;
 	return worker.fetch(
 		new Request('http://example.com/ship', { method: 'POST', body, headers: { 'X-Ship-Signature-256': await sign(body) } }),
@@ -128,59 +128,61 @@ describe('POST /ship board', () => {
 	};
 
 	it('posts the board once, then edits the same message', async () => {
-		const kv = fakeKv();
-		const env = { ...baseEnv, BOT_STATE: kv };
+		const env = { ...baseEnv, SHIP_BOARD: board.namespace };
 
 		expect((await send(env, report())).status).toBe(200);
 		expect(calls()).toEqual([
 			{ url: 'https://discord.com/api/v10/channels/gi-github-id/messages', method: 'POST' },
 			{ url: 'https://discord.com/api/v10/channels/board-id/messages', method: 'POST' },
 		]);
-		expect(JSON.parse(kv.store.get('ship-board') ?? '{}').messageId).toBe('board-msg');
+		expect((await board.saved())?.messageId).toBe('board-msg');
 
 		fetchMock.mockClear();
 		await send(env, report({ outcome: 'failed' }));
 		expect(calls()[1]).toEqual({ url: 'https://discord.com/api/v10/channels/board-id/messages/board-msg', method: 'PATCH' });
 	});
 
+	it('keeps every product and posts one message when reports arrive together', async () => {
+		const env = { ...baseEnv, SHIP_BOARD: board.namespace };
+		// Discord is slow, so the second report arrives while the first is still posting the board.
+		fetchMock.mockImplementation(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			return new Response(JSON.stringify({ id: 'board-msg' }), { status: 200 });
+		});
+
+		await Promise.all([
+			send(env, report()),
+			send(env, report({ product: 'creatrgrid', repository: 'ideaSquared/creatrgrid', project: 'gaminginit' })),
+		]);
+		expect(Object.keys((await board.saved())?.entries ?? {}).sort()).toEqual(['creatrgrid/production', 'gaminginit-bot/production']);
+		const boardCalls = calls().filter((c) => c.url.includes('/channels/board-id/'));
+		expect(boardCalls.map((c) => c.method)).toEqual(['POST', 'PATCH']);
+	});
+
 	it('posts a new board when the old message was deleted', async () => {
-		const kv = fakeKv();
-		kv.store.set('ship-board', JSON.stringify({ messageId: 'gone', entries: {} }));
-		fetchMock.mockImplementation(async (url: string, init: RequestInit) =>
+		await board.seed({ messageId: 'gone', entries: {} });
+		fetchMock.mockImplementation(async (_url: string, init: RequestInit) =>
 			init.method === 'PATCH'
 				? new Response('Unknown Message', { status: 404 })
 				: new Response(JSON.stringify({ id: 'fresh' }), { status: 200 }),
 		);
-		await send({ ...baseEnv, BOT_STATE: kv }, report());
+		await send({ ...baseEnv, SHIP_BOARD: board.namespace }, report());
 		expect(calls().map((c) => c.method)).toEqual(['POST', 'PATCH', 'POST']);
-		expect(JSON.parse(kv.store.get('ship-board') ?? '{}').messageId).toBe('fresh');
+		expect((await board.saved())?.messageId).toBe('fresh');
 	});
 
-	it('keeps the new live commit when the Discord edit fails', async () => {
-		const kv = fakeKv();
-		kv.store.set('ship-board', JSON.stringify({ messageId: 'board-msg', entries: {} }));
+	it('keeps the new live commit when the Discord edit fails, and logs it', async () => {
+		await board.seed({ messageId: 'board-msg', entries: {} });
 		fetchMock.mockImplementation(async (_url: string, init: RequestInit) =>
 			init.method === 'PATCH' ? new Response('bad', { status: 400 }) : new Response(JSON.stringify({ id: 'x' }), { status: 200 }),
 		);
-		expect((await send({ ...baseEnv, BOT_STATE: kv }, report())).status).toBe(200);
-		const saved = JSON.parse(kv.store.get('ship-board') ?? '{}');
-		expect(saved.entries['gaminginit-bot/production'].live.sha).toBe(NEW);
-		expect(saved.messageId).toBe('board-msg');
-	});
-
-	it('still answers 200 when the board fails, and logs it', async () => {
-		const kv = {
-			get: async () => {
-				throw new Error('kv down');
-			},
-			put: async () => undefined,
-		};
-		const res = await send({ ...baseEnv, BOT_STATE: kv }, report());
-		expect(res.status).toBe(200);
+		expect((await send({ ...baseEnv, SHIP_BOARD: board.namespace }, report())).status).toBe(200);
+		expect((await board.saved())?.entries['gaminginit-bot/production']?.live?.sha).toBe(NEW);
+		expect((await board.saved())?.messageId).toBe('board-msg');
 		expect(calls()[calls().length - 1]?.url).toBe('https://discord.com/api/v10/channels/logs-id/messages');
 	});
 
-	it('skips the board when no KV is bound', async () => {
+	it('skips the board when it is not bound', async () => {
 		await send(baseEnv, report());
 		expect(calls()).toHaveLength(1);
 	});

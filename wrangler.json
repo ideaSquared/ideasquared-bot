@@ -1,9 +1,11 @@
 {
 	"name": "ideasquared-bot",
 	"main": "src/index.ts",
-	"compatibility_date": "2024-02-05",
+	"compatibility_date": "2026-11-01",
 	"triggers": { "crons": ["*/30 * * * *", "*/5 * * * *"] },
 	"kv_namespaces": [{ "binding": "DOMAIN_WATCH" }, { "binding": "BOT_STATE" }],
+	"durable_objects": { "bindings": [{ "name": "SHIP_BOARD", "class_name": "ShipBoard" }] },
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShipBoard"] }],
 	"vars": {
 		"DISCORD_CHANNEL_ADS_GITHUB": "1568708022765883533",
 		"DISCORD_CHANNEL_ADS_RELEASES": "1568707993326067864",

@@ -6,6 +6,9 @@ import { verifySignature } from './github';
 import { StatusBindings, checkGitHubStatus } from './github-status';
 import { SHIP_SECRET_ENV_VAR, SHIP_SIGNATURE_HEADER, ShipReport, createShipEmbed, invalidReason } from './ship';
 
+// Durable Object classes must be exported from the Worker's main module.
+export { ShipBoard } from './board';
+
 export interface GitHubRepository {
 	name: string;
 	html_url?: string;

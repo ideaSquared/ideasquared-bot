@@ -1,9 +1,10 @@
 // The live deploy board: one message in #ship-status, edited after every shipper report.
+import { DurableObject } from 'cloudflare:workers';
 import { Env, SHIP_STATUS_ENV_VAR } from './config';
 import { editMessage, postToChannel } from './discord';
 import { ShipOutcome, ShipReport } from './ship';
 
-export type BoardBindings = { BOT_STATE?: KVNamespace };
+export type BoardBindings = { SHIP_BOARD?: DurableObjectNamespace<ShipBoard> };
 
 const STATE_KEY = 'ship-board';
 
@@ -117,20 +118,41 @@ export const renderBoard = (state: BoardState, now: Date) => {
 	};
 };
 
-// Records the report, then edits the board message, or posts a new one if it is missing.
-export const updateBoard = async (env: Env, token: string, report: ShipReport, now = new Date()): Promise<void> => {
-	// KV bindings sit on the same env object; Env only declares the string vars.
-	const kv = (env as unknown as BoardBindings).BOT_STATE;
-	const channelId = env[SHIP_STATUS_ENV_VAR];
-	if (!kv || !channelId) return;
+type Store = { get: () => Promise<BoardState | undefined>; put: (state: BoardState) => Promise<void> };
 
-	const stored = await kv.get<BoardState>(STATE_KEY, 'json');
-	const state = applyReport(stored ?? emptyState(), report);
+// Records the report, then edits the board message, or posts a new one if it is missing.
+const recordReport = async (store: Store, token: string, channelId: string, report: ShipReport, now: Date): Promise<void> => {
+	const state = applyReport((await store.get()) ?? emptyState(), report);
 	// Saved before Discord is called, so a failed edit never loses what is live.
-	await kv.put(STATE_KEY, JSON.stringify(state));
+	await store.put(state);
 	const body = renderBoard(state, now);
 	const edited = state.messageId ? await editMessage(token, channelId, state.messageId, body) : false;
 	if (edited) return;
 	const messageId = await postToChannel(token, channelId, body);
-	if (messageId) await kv.put(STATE_KEY, JSON.stringify({ ...state, messageId }));
+	if (messageId) await store.put({ ...state, messageId });
+};
+
+// The one writer of the board. Reports from different products can arrive together; each waits
+// for the one before it, including its Discord calls, so none is lost and only one message is posted.
+export class ShipBoard extends DurableObject<Env> {
+	private queue: Promise<unknown> = Promise.resolve();
+
+	async record(report: ShipReport, token: string, channelId: string): Promise<void> {
+		const store: Store = {
+			get: () => this.ctx.storage.get<BoardState>(STATE_KEY),
+			put: (state) => this.ctx.storage.put(STATE_KEY, state),
+		};
+		const run = this.queue.then(() => recordReport(store, token, channelId, report, new Date()));
+		this.queue = run.catch(() => undefined);
+		return run;
+	}
+}
+
+// Hands the report to the board's Durable Object. Does nothing when the board isn't set up.
+export const updateBoard = async (env: Env, token: string, report: ShipReport): Promise<void> => {
+	// Durable Object bindings sit on the same env object; Env only declares the string vars.
+	const namespace = (env as unknown as BoardBindings).SHIP_BOARD;
+	const channelId = env[SHIP_STATUS_ENV_VAR];
+	if (!namespace || !channelId) return;
+	await namespace.getByName('board').record(report, token, channelId);
 };

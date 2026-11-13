@@ -49,8 +49,9 @@ environment, the commit live there, who shipped it and when. A failed, rolled-ba
 extra line under the environment.
 
 - 🟢 shipped · 🟡 rolled back (the previous commit is shown as live) · 🔴 failed · ⛔ blocked (what was live stays live)
-- The board's state and message id are kept in the `BOT_STATE` KV namespace under `ship-board`. If the message is
-  deleted, the next report posts a new one. To start the board again: `pnpm exec wrangler kv key delete --binding BOT_STATE ship-board --remote`.
+- The board has one writer, the `ShipBoard` Durable Object (`SHIP_BOARD` binding). Reports that arrive together are
+  applied one after another, Discord calls included, so none is lost and only one board message is ever posted.
+  Its state and message id live in that object's storage; if the message is deleted, the next report posts a new one.
 - A board failure is logged to `#bot-logs` and never fails the report.
 
 The board only knows what shipper has reported since it started, so a product appears after its first ship.
