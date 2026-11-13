@@ -63,6 +63,21 @@ describe('renderBoard', () => {
 	});
 });
 
+describe('renderBoard limits', () => {
+	it('stays inside Discord embed limits with many or long-named products', () => {
+		const state = Array.from({ length: 40 }, (_, i) =>
+			report({ product: `${'p'.repeat(300)}-${String(i).padStart(2, '0')}`, outcome: 'failed' }),
+		).reduce(applyReport, empty);
+		const [embed] = renderBoard(state, new Date()).embeds;
+		const fields = embed?.fields ?? [];
+		const total = fields.reduce((n, f) => n + f.name.length + f.value.length, 0) + (embed?.title.length ?? 0) + (embed?.description.length ?? 0) + (embed?.footer.text.length ?? 0);
+		expect(total).toBeLessThanOrEqual(6000);
+		expect(fields.length).toBeLessThanOrEqual(25);
+		expect(fields.every((f) => f.name.length <= 256 && f.value.length <= 1024)).toBe(true);
+		expect(fields[fields.length - 1]?.value).toMatch(/more products not shown$/);
+	});
+});
+
 // ---- Through the worker: first report posts the board, the next edits it.
 
 const sign = async (body: string) => {
@@ -139,6 +154,18 @@ describe('POST /ship board', () => {
 		await send({ ...baseEnv, BOT_STATE: kv }, report());
 		expect(calls().map((c) => c.method)).toEqual(['POST', 'PATCH', 'POST']);
 		expect(JSON.parse(kv.store.get('ship-board') ?? '{}').messageId).toBe('fresh');
+	});
+
+	it('keeps the new live commit when the Discord edit fails', async () => {
+		const kv = fakeKv();
+		kv.store.set('ship-board', JSON.stringify({ messageId: 'board-msg', entries: {} }));
+		fetchMock.mockImplementation(async (_url: string, init: RequestInit) =>
+			init.method === 'PATCH' ? new Response('bad', { status: 400 }) : new Response(JSON.stringify({ id: 'x' }), { status: 200 }),
+		);
+		expect((await send({ ...baseEnv, BOT_STATE: kv }, report())).status).toBe(200);
+		const saved = JSON.parse(kv.store.get('ship-board') ?? '{}');
+		expect(saved.entries['gaminginit-bot/production'].live.sha).toBe(NEW);
+		expect(saved.messageId).toBe('board-msg');
 	});
 
 	it('still answers 200 when the board fails, and logs it', async () => {

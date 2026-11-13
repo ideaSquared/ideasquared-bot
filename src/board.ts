@@ -61,22 +61,48 @@ const entryLines = (e: BoardEntry): string[] => {
 	];
 };
 
+const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
+// Discord rejects an embed over 6000 characters in total or with more than 25 fields;
+// this leaves room for the title, description, footer and the overflow line.
+const FIELD_BUDGET = 5500;
+const MAX_FIELDS = 24;
+
+type Field = { name: string; value: string };
+
+// Keeps whole fields, in order, while they fit, then one line saying how many were left out.
+const withinBudget = (fields: readonly Field[]): Field[] => {
+	const { kept } = fields.reduce<{ kept: Field[]; used: number; full: boolean }>(
+		(acc, field) => {
+			const size = field.name.length + field.value.length;
+			if (acc.full || acc.kept.length >= MAX_FIELDS || acc.used + size > FIELD_BUDGET) return { ...acc, full: true };
+			return { ...acc, kept: [...acc.kept, field], used: acc.used + size };
+		},
+		{ kept: [], used: 0, full: false },
+	);
+	const left = fields.length - kept.length;
+	return left > 0 ? [...kept, { name: '…', value: `${left} more product${left === 1 ? '' : 's'} not shown` }] : kept;
+};
+
 export const renderBoard = (state: BoardState, now: Date) => {
 	const byProduct = Object.values(state.entries).reduce<Record<string, BoardEntry[]>>(
 		(groups, e) => ({ ...groups, [e.product]: [...(groups[e.product] ?? []), e] }),
 		{},
 	);
-	const fields = Object.keys(byProduct)
-		.sort()
-		.map((product) => ({
-			name: product,
-			value: (byProduct[product] ?? [])
-				.sort((a, b) => a.environment.localeCompare(b.environment))
-				.flatMap(entryLines)
-				.join('\n')
-				.slice(0, 1024),
-		}))
-		.slice(0, 25);
+	const fields = withinBudget(
+		Object.keys(byProduct)
+			.sort()
+			.map((product) => ({
+				name: clip(product, 256),
+				value: clip(
+					(byProduct[product] ?? [])
+						.sort((a, b) => a.environment.localeCompare(b.environment))
+						.flatMap(entryLines)
+						.join('\n'),
+					1024,
+				),
+			})),
+	);
 	return {
 		embeds: [
 			{
@@ -100,8 +126,11 @@ export const updateBoard = async (env: Env, token: string, report: ShipReport, n
 
 	const stored = await kv.get<BoardState>(STATE_KEY, 'json');
 	const state = applyReport(stored ?? emptyState(), report);
+	// Saved before Discord is called, so a failed edit never loses what is live.
+	await kv.put(STATE_KEY, JSON.stringify(state));
 	const body = renderBoard(state, now);
 	const edited = state.messageId ? await editMessage(token, channelId, state.messageId, body) : false;
-	const messageId = edited ? state.messageId : await postToChannel(token, channelId, body);
-	await kv.put(STATE_KEY, JSON.stringify({ ...state, messageId }));
+	if (edited) return;
+	const messageId = await postToChannel(token, channelId, body);
+	if (messageId) await kv.put(STATE_KEY, JSON.stringify({ ...state, messageId }));
 };
