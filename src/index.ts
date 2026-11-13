@@ -262,6 +262,11 @@ export default {
 	},
 
 	async fetch(request: Request, env: Env): Promise<Response> {
+		// Health check for deploys (ideaSquared/shipper polls it and rolls back if it never answers)
+		if (request.method === 'GET' && new URL(request.url).pathname === '/health') {
+			return new Response('ok', { status: 200 });
+		}
+
 		if (request.method !== 'POST') {
 			return new Response('Method Not Allowed', { status: 405 });
 		}

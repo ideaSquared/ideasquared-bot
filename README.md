@@ -95,9 +95,21 @@ Test the cron locally with `pnpm exec wrangler dev --test-scheduled`, then `curl
 
 Add an entry to `PROJECTS` in `src/config.ts`, set its env vars, and point the repo's webhook at `/<path>`.
 
+## Deploying
+
+Every push to `master` deploys the bot through [ideaSquared/shipper](https://github.com/ideaSquared/shipper) once the
+type-check, tests and a wrangler dry run pass (`.github/workflows/ci.yml`, described by `ship.yaml`). After deploying,
+shipper checks `GET /health` answers and rolls the Worker back to the previous version if it doesn't.
+
+One-time setup: add `CLOUDFLARE_API_TOKEN` (Cloudflare's **Edit Cloudflare Workers** template) and
+`CLOUDFLARE_ACCOUNT_ID` as repo secrets. To deploy `master` again without a new commit, run
+`ship deploy ideasquared-bot` (install with `pnpm add -g github:ideaSquared/shipper`) or Actions → CI → Run workflow.
+
+Secrets set with `wrangler secret put` stay in place across deploys.
+
 ## Dev
 
 ```bash
-pnpm test
-pnpm run deploy
+pnpm test              # watch mode; CI runs pnpm exec vitest run
+pnpm exec tsc --noEmit
 ```

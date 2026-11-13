@@ -1,0 +1,13 @@
+# How this repo deploys. Read by ideaSquared/shipper's reusable workflow (see its README).
+product: ideasquared-bot
+checks: [test]
+# `ship deploy ideasquared-bot` starts this workflow (it runs the tests, then deploys master).
+dispatch:
+  workflow: ci.yml
+environments:
+  production: {}
+components:
+  bot:
+    type: cloudflare-worker
+    # Polled after each deploy; if it never answers, the Worker is rolled back to the previous version.
+    health: /health

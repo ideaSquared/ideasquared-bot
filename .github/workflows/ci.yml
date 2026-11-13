@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# Runs on master go one at a time, in the order they were pushed, so an older commit never deploys after a newer one.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/master' && 'master' || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER_SEND_METRICS: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm exec vitest run
+      # Builds the Worker as a deploy does, without deploying it.
+      - run: pnpm exec wrangler deploy --dry-run
+
+  # Deploys master through ideaSquared/shipper once the tests pass: gate, wrangler deploy, /health check
+  # (rolls back if it fails). See ship.yaml.
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      checks: read
+      deployments: read
+    uses: ideaSquared/shipper/.github/workflows/deploy.yml@v1
+    with:
+      environment: production
+    secrets: inherit
