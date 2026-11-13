@@ -41,7 +41,7 @@ jobs:
     permissions:
       contents: read
       checks: read
-      deployments: read
+      deployments: write
     uses: ideaSquared/shipper/.github/workflows/deploy.yml@v1
     with:
       environment: production
