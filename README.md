@@ -64,15 +64,15 @@ A cron trigger (every 30 minutes) watches `ideasquared.com` (`WATCHED_DOMAIN` in
 The first run posts a baseline alert. The latest snapshot and a change history (last 500 entries) are kept in the `DOMAIN_WATCH` KV namespace under the `snapshot` and `history` keys:
 
 ```bash
-npx wrangler kv key get --binding DOMAIN_WATCH history --remote
+pnpm exec wrangler kv key get --binding DOMAIN_WATCH history --remote
 ```
 
 Setup:
 
 - `DISCORD_CHANNEL_DOMAIN_ALERTS` – channel ID for alerts (`wrangler.json` `vars`)
-- `DOMAIN_WATCH` KV namespace – created automatically on `wrangler deploy` (or create it with `npx wrangler kv namespace create DOMAIN_WATCH` and add the `id` to `wrangler.json`)
+- `DOMAIN_WATCH` KV namespace – created automatically on `wrangler deploy` (or create it with `pnpm exec wrangler kv namespace create DOMAIN_WATCH` and add the `id` to `wrangler.json`)
 
-Test the cron locally with `npx wrangler dev --test-scheduled`, then `curl "http://localhost:8787/__scheduled?cron=*/30+*+*+*+*"`.
+Test the cron locally with `pnpm exec wrangler dev --test-scheduled`, then `curl "http://localhost:8787/__scheduled?cron=*/30+*+*+*+*"`.
 
 ## Adding a project
 
@@ -81,6 +81,6 @@ Add an entry to `PROJECTS` in `src/config.ts`, set its env vars, and point the r
 ## Dev
 
 ```bash
-npm test
-npm run deploy
+pnpm test
+pnpm run deploy
 ```

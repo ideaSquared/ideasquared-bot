@@ -2,6 +2,7 @@
   "name": "ideasquared-bot",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "pnpm@10.34.3",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -16,8 +17,10 @@
     "vitest": "^5.1.0",
     "wrangler": "^4.158.0"
   },
-  "allowScripts": {
-    "esbuild@0.28.2": true,
-    "workerd@1.20261104.1": true
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   }
 }
