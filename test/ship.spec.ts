@@ -146,4 +146,29 @@ describe('POST /ship', () => {
 		expect(res.status).toBe(500);
 		expect(await res.text()).toBe('Error: SHIP_NOTIFY_SECRET is not set');
 	});
+
+	it('keeps a huge report under Discord embed limits', async () => {
+		const long = 'x'.repeat(5000);
+		await ship({
+			...report,
+			product: long.slice(0, 300),
+			totalCommits: 500,
+			commits: Array.from({ length: 10 }, (_, i) => ({ sha: `sha${i}`, message: long, author: long.slice(0, 100), url: `https://github.com/c/${i}` })),
+			components: Array.from({ length: 30 }, (_, i) => ({ name: `component-${i}-${long.slice(0, 200)}`, status: 'failed', detail: long })),
+			failures: [long, long],
+		});
+		const [{ embed }] = posted();
+		const author = (embed as unknown as { author: { name: string }; footer: { text: string } });
+		const total =
+			embed.title.length + embed.description.length + author.author.name.length + author.footer.text.length +
+			embed.fields.reduce((n, f) => n + f.name.length + f.value.length, 0);
+		expect(total).toBeLessThanOrEqual(6000);
+		expect(embed.title.length).toBeLessThanOrEqual(256);
+		expect(embed.description.length).toBeLessThanOrEqual(4096);
+		expect(embed.fields.length).toBeLessThanOrEqual(25);
+		embed.fields.forEach((f) => {
+			expect(f.name.length).toBeLessThanOrEqual(256);
+			expect(f.value.length).toBeLessThanOrEqual(1024);
+		});
+	});
 });

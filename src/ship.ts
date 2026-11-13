@@ -93,6 +93,11 @@ const commitLines = (r: ShipReport): string[] => {
 	return more > 0 ? [...lines, `…and ${more} more`] : lines;
 };
 
+// Room under Discord's limits: 6000 characters of text per embed, so cap what the fields can take.
+const EMBED_TEXT_LIMIT = 5900;
+const MAX_FIELDS = 10;
+const MAX_FIELD_VALUE = 300;
+
 const STATUS_LABEL: Record<ComponentStatus, string> = {
 	deployed: '✅ Deployed',
 	'rolled-back': '↩️ Rolled back',
@@ -113,21 +118,28 @@ export const createShipEmbed = (r: ShipReport, project: Project) => {
 		`[View the run](${r.runUrl})`,
 	].join('\n');
 
+	const title = clip(titleOf(r), 256);
+	const footer = clip(`${project.name} · ${r.repository}`, 2048);
+	const fields = r.components.slice(0, MAX_FIELDS).map((c) => ({
+		name: clip(c.name, 256),
+		value: clip([STATUS_LABEL[c.status], c.url, c.detail].filter(Boolean).join('\n'), MAX_FIELD_VALUE),
+		inline: r.components.length > 1,
+	}));
+	// Discord rejects an embed whose text adds up to more than 6000 characters; the description gets what is left.
+	const used = title.length + r.actor.length + footer.length + fields.reduce((n, f) => n + f.name.length + f.value.length, 0);
+	const descriptionBudget = Math.min(4096, EMBED_TEXT_LIMIT - used);
+
 	return {
 		embeds: [
 			{
-				title: titleOf(r),
+				title,
 				url: r.runUrl,
 				color: COLORS[r.outcome],
 				author: { name: r.actor, url: `https://github.com/${r.actor}`, icon_url: `https://github.com/${r.actor}.png` },
-				description: clip(description, 4000),
-				fields: r.components.slice(0, 25).map((c) => ({
-					name: c.name,
-					value: clip([STATUS_LABEL[c.status], c.url, c.detail].filter(Boolean).join('\n'), 1024),
-					inline: r.components.length > 1,
-				})),
+				description: clip(description, descriptionBudget),
+				fields,
 				timestamp: r.at,
-				footer: { text: `${project.name} · ${r.repository}` },
+				footer: { text: footer },
 			},
 		],
 	};
