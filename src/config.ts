@@ -22,6 +22,7 @@ export const PROJECTS: Record<string, Project> = {
 	pairflix: { key: 'PAIRFLIX', name: 'Pairflix' },
 	creatrgrid: { key: 'CREATRGRID', name: 'CreatrGrid' },
 	gaminginit: { key: 'GAMINGINIT', name: 'GamingInit' },
+	ideasquared: { key: 'IDEASQUARED', name: 'ideaSquared' },
 };
 
 export type GitHubEventType =
@@ -76,6 +77,14 @@ export const secretEnvVar = (project: Project): string => `GITHUB_WEBHOOK_SECRET
 
 export const BOT_LOGS_ENV_VAR = 'DISCORD_CHANNEL_BOT_LOGS';
 
+// Channel holding the live deploy board, one message the bot edits after every shipper report
+export const SHIP_STATUS_ENV_VAR = 'DISCORD_CHANNEL_SHIP_STATUS';
+
 // Domain watcher (cron): alerts on RDAP / aftermarket listing changes for this domain
 export const WATCHED_DOMAIN = 'ideasquared.com';
 export const DOMAIN_ALERTS_ENV_VAR = 'DISCORD_CHANNEL_DOMAIN_ALERTS';
+
+// GitHub status watcher (cron): new githubstatus.com incident updates go to this channel
+export const GITHUB_STATUS_ENV_VAR = 'DISCORD_CHANNEL_GITHUB_STATUS';
+export const DOMAIN_CRON = '*/30 * * * *';
+export const GITHUB_STATUS_CRON = '*/5 * * * *';

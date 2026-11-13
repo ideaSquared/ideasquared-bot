@@ -1,8 +1,13 @@
-import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, DOMAIN_CRON, GITHUB_STATUS_CRON, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import { updateBoard } from './board';
 import { logToBotLogs, postToChannel } from './discord';
 import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
+import { StatusBindings, checkGitHubStatus } from './github-status';
 import { SHIP_SECRET_ENV_VAR, SHIP_SIGNATURE_HEADER, ShipReport, createShipEmbed, invalidReason } from './ship';
+
+// Durable Object classes must be exported from the Worker's main module.
+export { ShipBoard } from './board';
 
 export interface GitHubRepository {
 	name: string;
@@ -229,12 +234,18 @@ const handleShip = async (request: Request, env: Env): Promise<Response> => {
 
 	try {
 		await postToChannel(token, channelId, createShipEmbed(report, project));
-		return new Response('Ship report posted', { status: 200 });
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
 		await logToBotLogs(env, `${project.name} ship report delivery failed: ${msg}`);
 		return new Response('Error sending message to Discord', { status: 502 });
 	}
+	// The board is a convenience: a failure is logged, never returned to shipper.
+	try {
+		await updateBoard(env, token, report);
+	} catch (error) {
+		await logToBotLogs(env, `Ship board update failed: ${error instanceof Error ? error.message : String(error)}`);
+	}
+	return new Response('Ship report posted', { status: 200 });
 };
 
 const getEventType = (request: Request): GitHubEventType | null => {
@@ -256,9 +267,10 @@ const resolveChannels = (env: Env, project: Project, kinds: ChannelKind[]): { ki
 
 export default {
 	// Cron trigger (see wrangler.json): domain watcher
-	async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-		// KV binding doesn't fit Env's string index signature, so it's read separately
-		ctx.waitUntil(checkDomain(env, env as unknown as DomainBindings));
+	async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+		// KV bindings don't fit Env's string index signature, so they're read separately
+		if (controller.cron === DOMAIN_CRON) ctx.waitUntil(checkDomain(env, env as unknown as DomainBindings));
+		if (controller.cron === GITHUB_STATUS_CRON) ctx.waitUntil(checkGitHubStatus(env, env as unknown as StatusBindings));
 	},
 
 	async fetch(request: Request, env: Env): Promise<Response> {
