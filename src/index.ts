@@ -2,6 +2,7 @@ import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, 
 import { logToBotLogs, postToChannel } from './discord';
 import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
+import { SHIP_SECRET_ENV_VAR, SHIP_SIGNATURE_HEADER, ShipReport, createShipEmbed, invalidReason } from './ship';
 
 export interface GitHubRepository {
 	name: string;
@@ -191,6 +192,51 @@ const createDiscordEmbed = (payload: GitHubWebhookPayload, eventType: GitHubEven
 	};
 };
 
+// POST /ship: a deploy report from ideaSquared/shipper, signed with SHIP_NOTIFY_SECRET.
+const handleShip = async (request: Request, env: Env): Promise<Response> => {
+	const token = env.DISCORD_BOT_TOKEN;
+	const secret = env[SHIP_SECRET_ENV_VAR];
+	if (!token || !secret) {
+		return new Response(`Error: ${!token ? 'DISCORD_BOT_TOKEN' : SHIP_SECRET_ENV_VAR} is not set`, { status: 500 });
+	}
+	const rawBody = await request.text();
+	if (!(await verifySignature(secret, rawBody, request.headers.get(SHIP_SIGNATURE_HEADER)))) {
+		return new Response('Invalid signature', { status: 401 });
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(rawBody);
+	} catch {
+		return new Response('Body is not JSON', { status: 400 });
+	}
+	const reason = invalidReason(parsed);
+	if (reason) return new Response(`Invalid report: ${reason}`, { status: 400 });
+	// invalidReason has checked every field ShipReport declares.
+	const report = parsed as ShipReport;
+
+	const project = PROJECTS[report.project.toLowerCase()];
+	if (!project) {
+		await logToBotLogs(env, `Ship report for unknown project '${report.project}' (${report.repository})`);
+		return new Response('Unknown project', { status: 404 });
+	}
+	const channelId = env[channelEnvVar(project, 'github')];
+	if (!channelId) {
+		const msg = `No channel configured for ${project.name} ship report (expected ${channelEnvVar(project, 'github')})`;
+		await logToBotLogs(env, msg);
+		return new Response(`Error: ${msg}`, { status: 500 });
+	}
+
+	try {
+		await postToChannel(token, channelId, createShipEmbed(report, project));
+		return new Response('Ship report posted', { status: 200 });
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		await logToBotLogs(env, `${project.name} ship report delivery failed: ${msg}`);
+		return new Response('Error sending message to Discord', { status: 502 });
+	}
+};
+
 const getEventType = (request: Request): GitHubEventType | null => {
 	return request.headers.get('X-GitHub-Event') as GitHubEventType | null;
 };
@@ -222,6 +268,7 @@ export default {
 
 		// Route by project: POST /<project>
 		const projectPath = new URL(request.url).pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+		if (projectPath === 'ship') return handleShip(request, env);
 		const project = PROJECTS[projectPath];
 		if (!project) {
 			return new Response('Unknown project', { status: 404 });

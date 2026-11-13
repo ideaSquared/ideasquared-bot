@@ -26,11 +26,28 @@ Deployments: subscribe the webhook to **Deployment statuses** if the repo deploy
 
 Failures and misconfiguration are reported to `#bot-logs`.
 
+## Deploy reports from shipper
+
+Repos that deploy with [ideaSquared/shipper](https://github.com/ideaSquared/shipper) send a signed report to
+`POST /ship` after every deploy, and when a deploy is blocked. The bot posts one embed to `<project>-github`:
+
+- the outcome in the title (shipped, rolled back, failed, blocked), linking to the Actions run;
+- who shipped it and when (shown in each reader's own time zone);
+- the commit that was live before and the one now live, with a compare link and the newest ten commits;
+- each component's result, including why a rollback happened.
+
+The report's `project` must be a key of `PROJECTS`. Requests are checked with `X-Ship-Signature-256` (HMAC-SHA256
+of the body, like GitHub's webhook signature) using the `SHIP_NOTIFY_SECRET` secret. Set the same value as an org-level
+GitHub Actions secret so every repo's deploy can sign its report.
+
+Once a repo deploys with shipper, untick **Deployment statuses** on its webhook, or both messages are posted.
+
 ## Configuration
 
 Secrets (`wrangler secret put <NAME>`):
 
 - `DISCORD_BOT_TOKEN` – shared bot token
+- `SHIP_NOTIFY_SECRET` – shared secret for shipper's deploy reports (`POST /ship`)
 - `GITHUB_WEBHOOK_SECRET_<PROJECT>` – per-project GitHub webhook secret (`ADS`, `PAIRFLIX`, `CREATRGRID`, `GAMINGINIT`); set the same value in that repo's webhook settings. Requests without a valid `X-Hub-Signature-256` are rejected.
 
 Channel IDs (not secret; `wrangler.json` `vars` or secrets):
