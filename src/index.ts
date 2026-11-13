@@ -1,8 +1,9 @@
-import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, DOMAIN_CRON, GITHUB_STATUS_CRON, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
 import { updateBoard } from './board';
 import { logToBotLogs, postToChannel } from './discord';
 import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
+import { StatusBindings, checkGitHubStatus } from './github-status';
 import { SHIP_SECRET_ENV_VAR, SHIP_SIGNATURE_HEADER, ShipReport, createShipEmbed, invalidReason } from './ship';
 
 export interface GitHubRepository {
@@ -263,9 +264,10 @@ const resolveChannels = (env: Env, project: Project, kinds: ChannelKind[]): { ki
 
 export default {
 	// Cron trigger (see wrangler.json): domain watcher
-	async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-		// KV binding doesn't fit Env's string index signature, so it's read separately
-		ctx.waitUntil(checkDomain(env, env as unknown as DomainBindings));
+	async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+		// KV bindings don't fit Env's string index signature, so they're read separately
+		if (controller.cron === DOMAIN_CRON) ctx.waitUntil(checkDomain(env, env as unknown as DomainBindings));
+		if (controller.cron === GITHUB_STATUS_CRON) ctx.waitUntil(checkGitHubStatus(env, env as unknown as StatusBindings));
 	},
 
 	async fetch(request: Request, env: Env): Promise<Response> {

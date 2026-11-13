@@ -82,6 +82,7 @@ Channel IDs (not secret; `wrangler.json` `vars` or secrets):
 | `DISCORD_CHANNEL_SHIP_STATUS` | `1570920375708287046` |
 | `DISCORD_CHANNEL_BOT_LOGS` | `1568708548605771797` |
 | `DISCORD_CHANNEL_DOMAIN_ALERTS` | `1568741669954654338` |
+| `DISCORD_CHANNEL_GITHUB_STATUS` | `1570181749642891386` |
 
 The bot needs **View Channel** and **Send Messages** (plus **Embed Links**) on each channel it posts to, granted via category permissions.
 
@@ -105,6 +106,17 @@ Setup:
 - `DOMAIN_WATCH` KV namespace – created automatically on `wrangler deploy` (or create it with `pnpm exec wrangler kv namespace create DOMAIN_WATCH` and add the `id` to `wrangler.json`)
 
 Test the cron locally with `pnpm exec wrangler dev --test-scheduled`, then `curl "http://localhost:8787/__scheduled?cron=*/30+*+*+*+*"`.
+
+## GitHub status watcher
+
+A second cron trigger (every 5 minutes) reads [githubstatus.com](https://www.githubstatus.com/api/v2/incidents.json)
+and posts each new incident update to the GitHub status channel (`DISCORD_CHANNEL_GITHUB_STATUS`,
+`1570181749642891386`): the incident, its status (🔍 investigating, 🧭 identified, 👀 monitoring, ✅ resolved),
+impact, affected components and GitHub's message.
+
+- The first run posts only incidents that are still open, so old ones are not replayed.
+- The newest update posted for each incident is kept in the `BOT_STATE` KV namespace under `github-status`.
+- If the status page can't be read, the error goes to `#bot-logs` and the next run tries again.
 
 ## Adding a project
 

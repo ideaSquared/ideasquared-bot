@@ -2,7 +2,7 @@
 	"name": "ideasquared-bot",
 	"main": "src/index.ts",
 	"compatibility_date": "2024-02-05",
-	"triggers": { "crons": ["*/30 * * * *"] },
+	"triggers": { "crons": ["*/30 * * * *", "*/5 * * * *"] },
 	"kv_namespaces": [{ "binding": "DOMAIN_WATCH" }, { "binding": "BOT_STATE" }],
 	"vars": {
 		"DISCORD_CHANNEL_ADS_GITHUB": "1568708022765883533",
@@ -15,6 +15,7 @@
 		"DISCORD_CHANNEL_GAMINGINIT_RELEASES": "1568967675726790677",
 		"DISCORD_CHANNEL_IDEASQUARED_GITHUB": "1570920349070004234",
 		"DISCORD_CHANNEL_SHIP_STATUS": "1570920375708287046",
+		"DISCORD_CHANNEL_GITHUB_STATUS": "1570181749642891386",
 		"DISCORD_CHANNEL_BOT_LOGS": "1568708548605771797",
 		"DISCORD_CHANNEL_DOMAIN_ALERTS": "1568741669954654338"
 	},

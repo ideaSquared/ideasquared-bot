@@ -83,3 +83,8 @@ export const SHIP_STATUS_ENV_VAR = 'DISCORD_CHANNEL_SHIP_STATUS';
 // Domain watcher (cron): alerts on RDAP / aftermarket listing changes for this domain
 export const WATCHED_DOMAIN = 'ideasquared.com';
 export const DOMAIN_ALERTS_ENV_VAR = 'DISCORD_CHANNEL_DOMAIN_ALERTS';
+
+// GitHub status watcher (cron): new githubstatus.com incident updates go to this channel
+export const GITHUB_STATUS_ENV_VAR = 'DISCORD_CHANNEL_GITHUB_STATUS';
+export const DOMAIN_CRON = '*/30 * * * *';
+export const GITHUB_STATUS_CRON = '*/5 * * * *';
