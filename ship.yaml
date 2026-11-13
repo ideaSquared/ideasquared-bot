@@ -1,5 +1,7 @@
 # How this repo deploys. Read by ideaSquared/shipper's reusable workflow (see its README).
 product: ideasquared-bot
+# Deploy messages go to this project's github channel (a key of PROJECTS in src/config.ts).
+discord: ideasquared
 checks: [test]
 # `ship deploy ideasquared-bot` starts this workflow (it runs the tests, then deploys master).
 dispatch:
