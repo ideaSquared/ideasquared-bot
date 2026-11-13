@@ -8,10 +8,34 @@ const USER_AGENT = 'DiscordBot (https://github.com/ideaSquared/ideasquared-bot, 
 const MAX_RETRIES = 2;
 const MAX_RETRY_WAIT_MS = 5000;
 
-export const postToChannel = async (token: string, channelId: string, body: unknown): Promise<void> => {
+// Returns the new message's id when Discord sends one back.
+export const postToChannel = async (token: string, channelId: string, body: unknown): Promise<string | undefined> =>
+	sendMessage(token, `${DISCORD_API}/channels/${channelId}/messages`, 'POST', body, channelId);
+
+// Edits a message the bot posted earlier. Returns false when the message no longer exists.
+export const editMessage = async (token: string, channelId: string, messageId: string, body: unknown): Promise<boolean> => {
+	try {
+		await sendMessage(token, `${DISCORD_API}/channels/${channelId}/messages/${messageId}`, 'PATCH', body, channelId);
+		return true;
+	} catch (error) {
+		if (error instanceof DiscordError && error.status === 404) return false;
+		throw error;
+	}
+};
+
+class DiscordError extends Error {
+	constructor(
+		readonly status: number,
+		message: string
+	) {
+		super(message);
+	}
+}
+
+const sendMessage = async (token: string, url: string, method: string, body: unknown, channelId: string): Promise<string | undefined> => {
 	for (let attempt = 0; ; attempt++) {
-		const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-			method: 'POST',
+		const res = await fetch(url, {
+			method,
 			headers: {
 				'Content-Type': 'application/json',
 				Authorization: `Bot ${token}`,
@@ -20,7 +44,10 @@ export const postToChannel = async (token: string, channelId: string, body: unkn
 			body: JSON.stringify(body),
 		});
 
-		if (res.ok) return;
+		if (res.ok) {
+			const data = (await res.json().catch(() => ({}))) as { id?: unknown };
+			return typeof data.id === 'string' ? data.id : undefined;
+		}
 
 		// Rate limited: honour Discord's retry_after (seconds) with a short, bounded wait
 		if (res.status === 429 && attempt < MAX_RETRIES) {
@@ -33,7 +60,7 @@ export const postToChannel = async (token: string, channelId: string, body: unkn
 			}
 		}
 
-		throw new Error(`Discord ${res.status} posting to channel ${channelId}: ${await res.text().catch(() => '')}`);
+		throw new DiscordError(res.status, `Discord ${res.status} sending to channel ${channelId}: ${await res.text().catch(() => '')}`);
 	}
 };
 

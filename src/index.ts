@@ -1,4 +1,5 @@
 import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import { updateBoard } from './board';
 import { logToBotLogs, postToChannel } from './discord';
 import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
@@ -229,12 +230,18 @@ const handleShip = async (request: Request, env: Env): Promise<Response> => {
 
 	try {
 		await postToChannel(token, channelId, createShipEmbed(report, project));
-		return new Response('Ship report posted', { status: 200 });
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
 		await logToBotLogs(env, `${project.name} ship report delivery failed: ${msg}`);
 		return new Response('Error sending message to Discord', { status: 502 });
 	}
+	// The board is a convenience: a failure is logged, never returned to shipper.
+	try {
+		await updateBoard(env, token, report);
+	} catch (error) {
+		await logToBotLogs(env, `Ship board update failed: ${error instanceof Error ? error.message : String(error)}`);
+	}
+	return new Response('Ship report posted', { status: 200 });
 };
 
 const getEventType = (request: Request): GitHubEventType | null => {
