@@ -56,12 +56,29 @@ extra line under the environment.
 
 The board only knows what shipper has reported since it started, so a product appears after its first ship.
 
+## Alerts from products
+
+Products send operational alerts to `POST /alert` instead of keeping their own Discord webhook. The bot posts each
+alert to `<project>-github` (private) with an `@everyone` mention, as an embed titled with 🚨 (critical, red) or
+⚠️ (warning, amber), the details as the description and the source and project in the footer.
+
+```json
+{ "project": "creatrgrid", "severity": "critical", "title": "Sync queue is failing", "details": "optional, max 1500", "source": "optional, max 100, e.g. the service name" }
+```
+
+- `project` must be a key of `PROJECTS`, `severity` is `critical` or `warning`, `title` is 1-200 characters; unknown keys are ignored.
+- Requests are checked with `X-Alert-Signature-256: sha256=<hex>` (HMAC-SHA256 of the raw body, like `/ship`) using the
+  `ALERT_SECRET` secret. Set the same value on each sending Worker (`wrangler secret put ALERT_SECRET`).
+- Responses: `200 {"ok": true}`; `401` missing or bad signature; `400` invalid body or unknown project; `503`
+  `ALERT_SECRET` is not configured; `502` Discord failed (also reported to `#bot-logs`, so the sender should retry).
+
 ## Configuration
 
 Secrets (`wrangler secret put <NAME>`):
 
 - `DISCORD_BOT_TOKEN` – shared bot token
 - `SHIP_NOTIFY_SECRET` – shared secret for shipper's deploy reports (`POST /ship`)
+- `ALERT_SECRET` – shared secret for product alerts (`POST /alert`)
 - `GITHUB_WEBHOOK_SECRET_<PROJECT>` – per-project GitHub webhook secret (`ADS`, `PAIRFLIX`, `CREATRGRID`, `GAMINGINIT`, `IDEASQUARED`); set the same value in that repo's webhook settings. Requests without a valid `X-Hub-Signature-256` are rejected.
 
 Channel IDs (not secret; `wrangler.json` `vars` or secrets):
