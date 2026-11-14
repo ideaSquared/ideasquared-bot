@@ -67,8 +67,8 @@ const sendMessage = async (token: string, url: string, method: string, body: unk
 
 // Best-effort error report to #bot-logs; never throws. `event` is a fixed code for the console log; the
 // free-text `message` only goes to Discord.
-export const logToBotLogs = async (env: Env, event: string, message: string): Promise<void> => {
-	log.error('bot-logs report', { event });
+export const logToBotLogs = async (env: Env, event: string, message: string, error?: unknown): Promise<void> => {
+	log.error('bot-logs report', { event }, error);
 	const token = env.DISCORD_BOT_TOKEN;
 	const channelId = env[BOT_LOGS_ENV_VAR];
 	if (!token || !channelId) return;

@@ -236,14 +236,14 @@ const handleShip = async (request: Request, env: Env): Promise<Response> => {
 		await postToChannel(token, channelId, createShipEmbed(report, project));
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
-		await logToBotLogs(env, 'ship-delivery-failed', `${project.name} ship report delivery failed: ${msg}`);
+		await logToBotLogs(env, 'ship-delivery-failed', `${project.name} ship report delivery failed: ${msg}`, error);
 		return new Response('Error sending message to Discord', { status: 502 });
 	}
 	// The board is a convenience: a failure is logged, never returned to shipper.
 	try {
 		await updateBoard(env, token, report);
 	} catch (error) {
-		await logToBotLogs(env, 'ship-board-failed', `Ship board update failed: ${error instanceof Error ? error.message : String(error)}`);
+		await logToBotLogs(env, 'ship-board-failed', `Ship board update failed: ${error instanceof Error ? error.message : String(error)}`, error);
 	}
 	return new Response('Ship report posted', { status: 200 });
 };
@@ -380,7 +380,7 @@ export default {
 
 			const failures = results.flatMap((r, i) => (r.status === 'rejected' ? [`${channels[i].kind}: ${r.reason instanceof Error ? r.reason.message : r.reason}`] : []));
 			if (failures.length > 0) {
-				await logToBotLogs(env, 'webhook-delivery-failed', `${project.name} ${eventType} delivery failed — ${failures.join('; ')}`);
+				await logToBotLogs(env, 'webhook-delivery-failed', `${project.name} ${eventType} delivery failed — ${failures.join('; ')}`, results.find((r) => r.status === 'rejected')?.reason);
 			}
 			if (failures.length === channels.length) {
 				return new Response('Error sending message to Discord', { status: 502 });
@@ -389,7 +389,7 @@ export default {
 			return new Response('Webhook processed successfully!', { status: 200 });
 		} catch (error) {
 			const msg = error instanceof Error ? error.message : String(error);
-			await logToBotLogs(env, 'webhook-error', `${project.name} webhook error: ${msg}`);
+			await logToBotLogs(env, 'webhook-error', `${project.name} webhook error: ${msg}`, error);
 			return new Response(`Error: ${msg}`, { status: 500 });
 		}
 	},

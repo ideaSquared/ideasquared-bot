@@ -167,7 +167,7 @@ export const checkDomain = async (env: Env, bindings: DomainBindings): Promise<v
 		} catch (e) {
 			listingFailing = true;
 			if (!prev?.listingFailing) {
-				await logToBotLogs(env, 'domain-listing-failed', `Domain watcher: listing check failed — ${e instanceof Error ? e.message : e}`);
+				await logToBotLogs(env, 'domain-listing-failed', `Domain watcher: listing check failed — ${e instanceof Error ? e.message : e}`, e);
 			}
 		}
 
@@ -182,6 +182,6 @@ export const checkDomain = async (env: Env, bindings: DomainBindings): Promise<v
 		}
 		await kv.put(SNAPSHOT_KEY, JSON.stringify(next));
 	} catch (e) {
-		await logToBotLogs(env, 'domain-error', `Domain watcher error: ${e instanceof Error ? e.message : e}`);
+		await logToBotLogs(env, 'domain-error', `Domain watcher error: ${e instanceof Error ? e.message : e}`, e);
 	}
 };
