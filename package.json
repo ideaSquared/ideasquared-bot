@@ -22,5 +22,8 @@
       "esbuild",
       "workerd"
     ]
+  },
+  "dependencies": {
+    "@ideasquared/log": "github:ideaSquared/agent-idea#e3f4dc3e1a356c14c77981949fcc0eb571cf4c10&path:/packages/log"
   }
 }

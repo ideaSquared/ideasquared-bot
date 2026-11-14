@@ -146,6 +146,18 @@ describe('ideaSquared bot', () => {
 		expect(postedChannels().sort()).toEqual(['ads-github-id', 'logs-id']);
 	});
 
+	it('console-logs only a fixed event code for bot-logs reports, never the message text', async () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		fetchMock.mockImplementation(async (url: string) =>
+			String(url).includes('ads-releases-id') ? new Response('secret-detail', { status: 403 }) : new Response('{}', { status: 200 })
+		);
+		await send('/ads', 'release', release);
+		const lines = spy.mock.calls.map(([line]) => JSON.parse(String(line)));
+		spy.mockRestore();
+		expect(lines).toContainEqual(expect.objectContaining({ message: 'bot-logs report', meta: { event: 'webhook-delivery-failed' } }));
+		expect(JSON.stringify(lines)).not.toContain('secret-detail');
+	});
+
 	it('502 when every channel fails', async () => {
 		fetchMock.mockImplementation(async () => new Response('nope', { status: 500 }));
 		expect((await send('/ads', 'pull_request', pr)).status).toBe(502);

@@ -151,7 +151,7 @@ export const checkDomain = async (env: Env, bindings: DomainBindings): Promise<v
 	const token = env.DISCORD_BOT_TOKEN;
 	const channelId = env[DOMAIN_ALERTS_ENV_VAR];
 	if (!kv || !token || !channelId) {
-		await logToBotLogs(env, `Domain watcher misconfigured: need DOMAIN_WATCH KV, DISCORD_BOT_TOKEN and ${DOMAIN_ALERTS_ENV_VAR}`);
+		await logToBotLogs(env, 'domain-misconfigured', `Domain watcher misconfigured: need DOMAIN_WATCH KV, DISCORD_BOT_TOKEN and ${DOMAIN_ALERTS_ENV_VAR}`);
 		return;
 	}
 
@@ -167,7 +167,7 @@ export const checkDomain = async (env: Env, bindings: DomainBindings): Promise<v
 		} catch (e) {
 			listingFailing = true;
 			if (!prev?.listingFailing) {
-				await logToBotLogs(env, `Domain watcher: listing check failed — ${e instanceof Error ? e.message : e}`);
+				await logToBotLogs(env, 'domain-listing-failed', `Domain watcher: listing check failed — ${e instanceof Error ? e.message : e}`);
 			}
 		}
 
@@ -182,6 +182,6 @@ export const checkDomain = async (env: Env, bindings: DomainBindings): Promise<v
 		}
 		await kv.put(SNAPSHOT_KEY, JSON.stringify(next));
 	} catch (e) {
-		await logToBotLogs(env, `Domain watcher error: ${e instanceof Error ? e.message : e}`);
+		await logToBotLogs(env, 'domain-error', `Domain watcher error: ${e instanceof Error ? e.message : e}`);
 	}
 };

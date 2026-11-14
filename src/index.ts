@@ -222,13 +222,13 @@ const handleShip = async (request: Request, env: Env): Promise<Response> => {
 
 	const project = PROJECTS[report.project.toLowerCase()];
 	if (!project) {
-		await logToBotLogs(env, `Ship report for unknown project '${report.project}' (${report.repository})`);
+		await logToBotLogs(env, 'ship-unknown-project', `Ship report for unknown project '${report.project}' (${report.repository})`);
 		return new Response('Unknown project', { status: 404 });
 	}
 	const channelId = env[channelEnvVar(project, 'github')];
 	if (!channelId) {
 		const msg = `No channel configured for ${project.name} ship report (expected ${channelEnvVar(project, 'github')})`;
-		await logToBotLogs(env, msg);
+		await logToBotLogs(env, 'ship-no-channel', msg);
 		return new Response(`Error: ${msg}`, { status: 500 });
 	}
 
@@ -236,14 +236,14 @@ const handleShip = async (request: Request, env: Env): Promise<Response> => {
 		await postToChannel(token, channelId, createShipEmbed(report, project));
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
-		await logToBotLogs(env, `${project.name} ship report delivery failed: ${msg}`);
+		await logToBotLogs(env, 'ship-delivery-failed', `${project.name} ship report delivery failed: ${msg}`);
 		return new Response('Error sending message to Discord', { status: 502 });
 	}
 	// The board is a convenience: a failure is logged, never returned to shipper.
 	try {
 		await updateBoard(env, token, report);
 	} catch (error) {
-		await logToBotLogs(env, `Ship board update failed: ${error instanceof Error ? error.message : String(error)}`);
+		await logToBotLogs(env, 'ship-board-failed', `Ship board update failed: ${error instanceof Error ? error.message : String(error)}`);
 	}
 	return new Response('Ship report posted', { status: 200 });
 };
@@ -312,7 +312,7 @@ export default {
 				const channelId = env[channelEnvVar(project, 'github')];
 				if (!channelId) {
 					const msg = `No channel configured for ${project.name} ping (expected ${channelEnvVar(project, 'github')})`;
-					await logToBotLogs(env, msg);
+					await logToBotLogs(env, 'ping-no-channel', msg);
 					return new Response(`Error: ${msg}`, { status: 500 });
 				}
 				const ping: GitHubWebhookPayload & { zen?: string } = JSON.parse(rawBody);
@@ -365,14 +365,14 @@ export default {
 				const msg = `No channels configured for ${project.name} ${eventType} (expected ${EVENT_ROUTES[eventType]
 					.map((k) => channelEnvVar(project, k))
 					.join(', ')})`;
-				await logToBotLogs(env, msg);
+				await logToBotLogs(env, 'webhook-no-channels', msg);
 				return new Response(`Error: ${msg}`, { status: 500 });
 			}
 
 			// Partial config: still deliver to what's configured, but flag what's missing
 			const missing = EVENT_ROUTES[eventType].filter((k) => !channels.some((c) => c.kind === k));
 			if (missing.length > 0) {
-				await logToBotLogs(env, `${project.name} ${eventType}: missing ${missing.map((k) => channelEnvVar(project, k)).join(', ')}`);
+				await logToBotLogs(env, 'webhook-missing-channels', `${project.name} ${eventType}: missing ${missing.map((k) => channelEnvVar(project, k)).join(', ')}`);
 			}
 
 			const body = createDiscordEmbed(payload, eventType, project);
@@ -380,7 +380,7 @@ export default {
 
 			const failures = results.flatMap((r, i) => (r.status === 'rejected' ? [`${channels[i].kind}: ${r.reason instanceof Error ? r.reason.message : r.reason}`] : []));
 			if (failures.length > 0) {
-				await logToBotLogs(env, `${project.name} ${eventType} delivery failed — ${failures.join('; ')}`);
+				await logToBotLogs(env, 'webhook-delivery-failed', `${project.name} ${eventType} delivery failed — ${failures.join('; ')}`);
 			}
 			if (failures.length === channels.length) {
 				return new Response('Error sending message to Discord', { status: 502 });
@@ -389,7 +389,7 @@ export default {
 			return new Response('Webhook processed successfully!', { status: 200 });
 		} catch (error) {
 			const msg = error instanceof Error ? error.message : String(error);
-			await logToBotLogs(env, `${project.name} webhook error: ${msg}`);
+			await logToBotLogs(env, 'webhook-error', `${project.name} webhook error: ${msg}`);
 			return new Response(`Error: ${msg}`, { status: 500 });
 		}
 	},

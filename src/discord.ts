@@ -1,4 +1,5 @@
 import { BOT_LOGS_ENV_VAR, Env } from './config';
+import { log } from './log';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -64,15 +65,16 @@ const sendMessage = async (token: string, url: string, method: string, body: unk
 	}
 };
 
-// Best-effort error report to #bot-logs; never throws.
-export const logToBotLogs = async (env: Env, message: string): Promise<void> => {
-	console.error(message);
+// Best-effort error report to #bot-logs; never throws. `event` is a fixed code for the console log; the
+// free-text `message` only goes to Discord.
+export const logToBotLogs = async (env: Env, event: string, message: string): Promise<void> => {
+	log.error('bot-logs report', { event });
 	const token = env.DISCORD_BOT_TOKEN;
 	const channelId = env[BOT_LOGS_ENV_VAR];
 	if (!token || !channelId) return;
 	try {
 		await postToChannel(token, channelId, { content: `⚠️ ${message}`.slice(0, 2000) });
 	} catch (e) {
-		console.error('Failed to post to bot-logs', e);
+		log.warn('bot-logs post failed', { event }, e);
 	}
 };
