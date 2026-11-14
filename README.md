@@ -75,6 +75,17 @@ alert to `<project>-github` (private) with an `@everyone` mention, as an embed t
 - Responses: `200 {"ok": true}`; `401` missing or bad signature; `400` invalid body or unknown project; `503`
   `ALERT_SECRET` is not configured; `502` Discord failed (also reported to `#bot-logs`, so the sender should retry).
 
+### From Alertmanager
+
+Alertmanager cannot sign a body, so it posts its standard webhook JSON to `POST /alert/alertmanager/<project>` with
+`Authorization: Bearer <ALERT_SECRET>` (`http_config.authorization` with a `credentials_file` in `webhook_configs`).
+
+- Firing: posted like any alert, with `@everyone`; 🚨 when the group's `severity` label is `critical`, ⚠️ otherwise.
+  The title is `Firing: <alertname>`; each alert's `summary`, `description` and `runbook` annotations make the
+  description.
+- Resolved: posted as ✅ `Resolved: <alertname>` with no ping.
+- Responses match `/alert`, with `401` for a missing or wrong token.
+
 ## Configuration
 
 Secrets (`wrangler secret put <NAME>`):
