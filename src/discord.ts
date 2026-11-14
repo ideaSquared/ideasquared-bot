@@ -24,7 +24,7 @@ export const editMessage = async (token: string, channelId: string, messageId: s
 	}
 };
 
-class DiscordError extends Error {
+export class DiscordError extends Error {
 	constructor(
 		readonly status: number,
 		message: string

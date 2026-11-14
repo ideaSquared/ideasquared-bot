@@ -1,8 +1,10 @@
 import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, DOMAIN_CRON, GITHUB_STATUS_CRON, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import { ALERT_SECRET_ENV_VAR, ALERT_SIGNATURE_HEADER, AlertSchema, createAlertMessage } from './alert';
 import { updateBoard } from './board';
-import { logToBotLogs, postToChannel } from './discord';
+import { DiscordError, logToBotLogs, postToChannel } from './discord';
 import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
+import { log } from './log';
 import { StatusBindings, checkGitHubStatus } from './github-status';
 import { SHIP_SECRET_ENV_VAR, SHIP_SIGNATURE_HEADER, ShipReport, createShipEmbed, invalidReason } from './ship';
 
@@ -248,6 +250,49 @@ const handleShip = async (request: Request, env: Env): Promise<Response> => {
 	return new Response('Ship report posted', { status: 200 });
 };
 
+// POST /alert: an operational alert from a product, signed with ALERT_SECRET.
+const handleAlert = async (request: Request, env: Env): Promise<Response> => {
+	const secret = env[ALERT_SECRET_ENV_VAR];
+	if (!secret) return new Response(`Error: ${ALERT_SECRET_ENV_VAR} is not set`, { status: 503 });
+	const token = env.DISCORD_BOT_TOKEN;
+	if (!token) return new Response('Error: DISCORD_BOT_TOKEN is not set', { status: 500 });
+	const rawBody = await request.text();
+	if (!(await verifySignature(secret, rawBody, request.headers.get(ALERT_SIGNATURE_HEADER)))) {
+		return new Response('Invalid signature', { status: 401 });
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(rawBody);
+	} catch {
+		return new Response('Body is not JSON', { status: 400 });
+	}
+	const result = AlertSchema.safeParse(parsed);
+	if (!result.success) return new Response('Invalid alert', { status: 400 });
+	const alert = result.data;
+
+	const projectKey = alert.project.toLowerCase();
+	if (!Object.prototype.hasOwnProperty.call(PROJECTS, projectKey)) return new Response('Unknown project', { status: 400 });
+	const project = PROJECTS[projectKey];
+	const channelId = env[channelEnvVar(project, 'github')];
+	if (!channelId) {
+		const msg = `No channel configured for ${project.name} alert (expected ${channelEnvVar(project, 'github')})`;
+		await logToBotLogs(env, 'alert-no-channel', msg);
+		return new Response(`Error: ${msg}`, { status: 500 });
+	}
+
+	try {
+		await postToChannel(token, channelId, createAlertMessage(alert, project));
+	} catch (error) {
+		// Status only: Discord's response body can echo the alert, so it goes neither to the console nor to #bot-logs.
+		const reason = error instanceof DiscordError ? `HTTP ${error.status}` : 'request failed';
+		await logToBotLogs(env, 'alert-delivery-failed', `${project.name} alert delivery failed: ${reason}`);
+		return new Response('Error sending message to Discord', { status: 502 });
+	}
+	log.info('alert posted', { project: projectKey, severity: alert.severity });
+	return Response.json({ ok: true });
+};
+
 const getEventType = (request: Request): GitHubEventType | null => {
 	return request.headers.get('X-GitHub-Event') as GitHubEventType | null;
 };
@@ -286,6 +331,7 @@ export default {
 		// Route by project: POST /<project>
 		const projectPath = new URL(request.url).pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
 		if (projectPath === 'ship') return handleShip(request, env);
+		if (projectPath === 'alert') return handleAlert(request, env);
 		const project = PROJECTS[projectPath];
 		if (!project) {
 			return new Response('Unknown project', { status: 404 });
