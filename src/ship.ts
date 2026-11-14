@@ -105,6 +105,14 @@ const STATUS_LABEL: Record<ComponentStatus, string> = {
 	skipped: '⏭️ Skipped',
 };
 
+// Automatic deploys are credited to "GitHub Actions", which is not a login: a profile URL built from it is
+// invalid and Discord rejects the whole message.
+const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const authorOf = (actor: string) =>
+	GITHUB_LOGIN.test(actor)
+		? { name: actor, url: `https://github.com/${actor}`, icon_url: `https://github.com/${actor}.png` }
+		: { name: actor, icon_url: 'https://github.com/github-actions.png' };
+
 export const createShipEmbed = (r: ShipReport, project: Project) => {
 	const unix = Math.floor(Date.parse(r.at) / 1000);
 	const intro = r.outcome === 'blocked' ? 'Tried by' : 'Shipped by';
@@ -135,7 +143,7 @@ export const createShipEmbed = (r: ShipReport, project: Project) => {
 				title,
 				url: r.runUrl,
 				color: COLORS[r.outcome],
-				author: { name: r.actor, url: `https://github.com/${r.actor}`, icon_url: `https://github.com/${r.actor}.png` },
+				author: authorOf(r.actor),
 				description: clip(description, descriptionBudget),
 				fields,
 				timestamp: r.at,

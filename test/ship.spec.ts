@@ -171,4 +171,22 @@ describe('POST /ship', () => {
 			expect(f.value.length).toBeLessThanOrEqual(1024);
 		});
 	});
+	it('links the author to their GitHub profile', async () => {
+		await ship(report);
+		const [{ embed }] = posted();
+		expect((embed as unknown as { author: unknown }).author).toEqual({
+			name: 'octocat',
+			url: 'https://github.com/octocat',
+			icon_url: 'https://github.com/octocat.png',
+		});
+	});
+
+	it('shows an automatic deploy by "GitHub Actions" without a profile link', async () => {
+		await ship({ ...report, actor: 'GitHub Actions' });
+		const [{ embed }] = posted();
+		expect((embed as unknown as { author: unknown }).author).toEqual({
+			name: 'GitHub Actions',
+			icon_url: 'https://github.com/github-actions.png',
+		});
+	});
 });
