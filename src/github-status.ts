@@ -110,6 +110,6 @@ export const checkGitHubStatus = async (env: Env, bindings: StatusBindings): Pro
 		}
 		await kv.put(STATE_KEY, JSON.stringify(nextState(incidents)));
 	} catch (error) {
-		await logToBotLogs(env, `GitHub status check failed: ${error instanceof Error ? error.message : String(error)}`);
+		await logToBotLogs(env, 'github-status-failed', `GitHub status check failed: ${error instanceof Error ? error.message : String(error)}`, error);
 	}
 };

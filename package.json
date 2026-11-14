@@ -22,5 +22,8 @@
       "esbuild",
       "workerd"
     ]
+  },
+  "dependencies": {
+    "@ideasquared/log": "https://github.com/ideaSquared/agent-idea/releases/download/log-v0.1.1/ideasquared-log-0.1.1.tgz"
   }
 }

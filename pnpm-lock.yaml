@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@ideasquared/log':
+        specifier: https://github.com/ideaSquared/agent-idea/releases/download/log-v0.1.1/ideasquared-log-0.1.1.tgz
+        version: https://github.com/ideaSquared/agent-idea/releases/download/log-v0.1.1/ideasquared-log-0.1.1.tgz
     devDependencies:
       '@cloudflare/vitest-plugin':
         specifier: ^1.6.0
@@ -239,6 +243,10 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@ideasquared/log@https://github.com/ideaSquared/agent-idea/releases/download/log-v0.1.1/ideasquared-log-0.1.1.tgz':
+    resolution: {integrity: sha512-3Tg2K14xin6bHZXy8ppttvxgzQgiMvzKndaH9SoMRmG1kknJm4pEo//QOIGYvL9DtLq8squkHGuXJps2tStnQA==, tarball: https://github.com/ideaSquared/agent-idea/releases/download/log-v0.1.1/ideasquared-log-0.1.1.tgz}
+    version: 0.1.0
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -1150,6 +1158,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@ideasquared/log@https://github.com/ideaSquared/agent-idea/releases/download/log-v0.1.1/ideasquared-log-0.1.1.tgz': {}
 
   '@img/colour@1.1.0': {}
 
