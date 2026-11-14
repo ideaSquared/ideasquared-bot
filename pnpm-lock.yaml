@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@ideasquared/log':
         specifier: github:ideaSquared/agent-idea#e3f4dc3e1a356c14c77981949fcc0eb571cf4c10&path:/packages/log
-        version: git+ssh://git@github.com/ideaSquared/agent-idea.git#e3f4dc3e1a356c14c77981949fcc0eb571cf4c10&path:/packages/log
+        version: https://codeload.github.com/ideaSquared/agent-idea/tar.gz/e3f4dc3e1a356c14c77981949fcc0eb571cf4c10#path:/packages/log
     devDependencies:
       '@cloudflare/vitest-plugin':
         specifier: ^1.6.0
@@ -244,8 +244,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@ideasquared/log@git+ssh://git@github.com/ideaSquared/agent-idea.git#e3f4dc3e1a356c14c77981949fcc0eb571cf4c10&path:/packages/log':
-    resolution: {commit: e3f4dc3e1a356c14c77981949fcc0eb571cf4c10, path: /packages/log, repo: git@github.com:ideaSquared/agent-idea.git, type: git}
+  '@ideasquared/log@https://codeload.github.com/ideaSquared/agent-idea/tar.gz/e3f4dc3e1a356c14c77981949fcc0eb571cf4c10#path:/packages/log':
+    resolution: {path: /packages/log, tarball: https://codeload.github.com/ideaSquared/agent-idea/tar.gz/e3f4dc3e1a356c14c77981949fcc0eb571cf4c10}
     version: 0.1.0
 
   '@img/colour@1.1.0':
@@ -1159,7 +1159,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@ideasquared/log@git+ssh://git@github.com/ideaSquared/agent-idea.git#e3f4dc3e1a356c14c77981949fcc0eb571cf4c10&path:/packages/log': {}
+  '@ideasquared/log@https://codeload.github.com/ideaSquared/agent-idea/tar.gz/e3f4dc3e1a356c14c77981949fcc0eb571cf4c10#path:/packages/log': {}
 
   '@img/colour@1.1.0': {}
 
