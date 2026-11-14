@@ -30,6 +30,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc --noEmit
       - run: pnpm exec vitest run
+      # Server code logs through @ideasquared/log, never console (see .claude/skills/logging).
+      # A justified exception carries `// logging-exempt: <reason>` on the same line.
+      - name: No console calls in server code
+        run: |
+          if grep -rnE '\bconsole\.(log|info|warn|error|debug|trace)\(' src --include='*.ts' | grep -v 'logging-exempt:'; then
+            echo "::error::Log through @ideasquared/log instead of console. See .claude/skills/logging/SKILL.md."
+            exit 1
+          fi
       # Builds the Worker as a deploy does, without deploying it.
       - run: pnpm exec wrangler deploy --dry-run
 
