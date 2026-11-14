@@ -1,7 +1,7 @@
 import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, DOMAIN_CRON, GITHUB_STATUS_CRON, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
 import { ALERT_SECRET_ENV_VAR, ALERT_SIGNATURE_HEADER, AlertSchema, createAlertMessage } from './alert';
 import { updateBoard } from './board';
-import { logToBotLogs, postToChannel } from './discord';
+import { DiscordError, logToBotLogs, postToChannel } from './discord';
 import { DomainBindings, checkDomain } from './domain';
 import { verifySignature } from './github';
 import { log } from './log';
@@ -284,8 +284,9 @@ const handleAlert = async (request: Request, env: Env): Promise<Response> => {
 	try {
 		await postToChannel(token, channelId, createAlertMessage(alert, project));
 	} catch (error) {
-		const msg = error instanceof Error ? error.message : String(error);
-		await logToBotLogs(env, 'alert-delivery-failed', `${project.name} alert delivery failed: ${msg}`, error);
+		// Status only: Discord's response body can echo the alert, so it goes neither to the console nor to #bot-logs.
+		const reason = error instanceof DiscordError ? `HTTP ${error.status}` : 'request failed';
+		await logToBotLogs(env, 'alert-delivery-failed', `${project.name} alert delivery failed: ${reason}`);
 		return new Response('Error sending message to Discord', { status: 502 });
 	}
 	log.info('alert posted', { project: projectKey, severity: alert.severity });

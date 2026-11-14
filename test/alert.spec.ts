@@ -130,4 +130,21 @@ describe('POST /alert', () => {
 		const [, logPost] = posted();
 		expect(logPost.channel).toBe('logs-id');
 	});
+
+	it("keeps Discord's response body out of the console log and #bot-logs, giving only the status", async () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		fetchMock.mockImplementation(async (url: string) =>
+			String(url).includes('/channels/cg-github-id/') ? new Response('secret-body', { status: 500 }) : new Response('{}', { status: 200 })
+		);
+		await send(alert);
+		const lines = spy.mock.calls.map(([line]) => JSON.parse(String(line)));
+		spy.mockRestore();
+		const failed = lines.filter((line) => line.meta?.event === 'alert-delivery-failed');
+		expect(failed).toHaveLength(1);
+		expect(failed[0].error).toBeUndefined();
+		expect(JSON.stringify(lines)).not.toContain('secret-body');
+		const [, logPost] = posted();
+		expect(JSON.stringify(logPost)).toContain('HTTP 500');
+		expect(JSON.stringify(logPost)).not.toContain('secret-body');
+	});
 });

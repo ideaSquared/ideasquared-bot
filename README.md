@@ -67,6 +67,9 @@ alert to `<project>-github` (private) with an `@everyone` mention, as an embed t
 ```
 
 - `project` must be a key of `PROJECTS`, `severity` is `critical` or `warning`, `title` is 1-200 characters; unknown keys are ignored.
+- For the `@everyone` mention to ping, the bot needs **Mention @everyone, @here, and All Roles** in each
+  `<project>-github` channel (as well as View Channel, Send Messages and Embed Links). Without it Discord still
+  posts the alert, and `/alert` still answers 200, but nobody is notified.
 - Requests are checked with `X-Alert-Signature-256: sha256=<hex>` (HMAC-SHA256 of the raw body, like `/ship`) using the
   `ALERT_SECRET` secret. Set the same value on each sending Worker (`wrangler secret put ALERT_SECRET`).
 - Responses: `200 {"ok": true}`; `401` missing or bad signature; `400` invalid body or unknown project; `503`
