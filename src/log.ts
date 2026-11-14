@@ -1,3 +1,3 @@
 import { createLogger } from '@ideasquared/log';
 
-export const log = createLogger({ service: 'ideasquared-bot', fields: ['event', 'project', 'severity'] });
+export const log = createLogger({ service: 'ideasquared-bot', fields: ['event', 'project', 'severity', 'status'] });
