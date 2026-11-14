@@ -74,7 +74,7 @@ export const logToBotLogs = async (env: Env, event: string, message: string, err
 	if (!token || !channelId) return;
 	try {
 		await postToChannel(token, channelId, { content: `⚠️ ${message}`.slice(0, 2000) });
-	} catch (e) {
-		log.warn('bot-logs post failed', { event }, e);
+	} catch {
+		log.warn('bot-logs post failed', { event });
 	}
 };
