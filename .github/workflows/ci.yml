@@ -38,10 +38,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
       # Fails when worker-configuration.d.ts no longer matches wrangler.jsonc (run `pnpm cf-typegen`).
       - run: pnpm exec wrangler types --check
-      - run: pnpm exec tsc --noEmit
-      - run: pnpm exec vitest run
+      - run: pnpm typecheck
+      - run: pnpm test --run
       # Server code logs through @ideasquared/log, never console (see .claude/skills/logging).
       # A justified exception carries `// logging-exempt: <reason>` on the same line.
       - name: No console calls in server code
@@ -51,7 +53,8 @@ jobs:
             exit 1
           fi
       # Builds the Worker as a deploy does, without deploying it.
-      - run: pnpm exec wrangler deploy --dry-run
+      - name: build
+        run: pnpm exec wrangler deploy --dry-run
 
   # Deploys master through ideaSquared/shipper once the tests pass: gate, wrangler deploy, /health check
   # (rolls back if it fails). See ship.yaml.
