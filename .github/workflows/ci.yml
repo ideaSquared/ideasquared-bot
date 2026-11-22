@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       # Dependabot bumps the shipper SHA in a `uses:` line but not the matching `shipper-ref:` input, so
       # a bump would run the new workflow with the old shipper scripts. Every pin must be the same SHA.
       - name: shipper pins match
