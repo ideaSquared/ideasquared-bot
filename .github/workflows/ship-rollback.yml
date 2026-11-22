@@ -28,10 +28,10 @@ jobs:
       contents: read
       checks: read
       deployments: write
-    uses: ideaSquared/shipper/.github/workflows/deploy.yml@faf1fd936bcba4dd2f1a60ce33f18298ca1cb19c # v1
+    uses: ideaSquared/shipper/.github/workflows/deploy.yml@7839bde2edef52a5e58107bbf83e9b9760d7d52a # v1.0.0
     with:
       environment: ${{ inputs.environment }}
       sha: ${{ inputs.sha }}
       rollback: true
-      shipper-ref: faf1fd936bcba4dd2f1a60ce33f18298ca1cb19c
+      shipper-ref: 7839bde2edef52a5e58107bbf83e9b9760d7d52a
     secrets: inherit
