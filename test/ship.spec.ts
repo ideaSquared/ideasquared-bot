@@ -49,7 +49,7 @@ const ship = async (payload: unknown, secret = SECRET, e: Record<string, string>
 	const body = JSON.stringify(payload);
 	return worker.fetch(
 		new Request('http://example.com/ship', { method: 'POST', body, headers: { 'X-Ship-Signature-256': await sign(secret, body) } }),
-		e
+		e,
 	);
 };
 
@@ -107,7 +107,16 @@ describe('POST /ship', () => {
 	});
 
 	it('lists why a deploy was blocked', async () => {
-		await ship({ ...report, outcome: 'blocked', previousSha: null, compareUrl: null, totalCommits: 0, commits: [], components: [], failures: ["check 'test' did not pass"] });
+		await ship({
+			...report,
+			outcome: 'blocked',
+			previousSha: null,
+			compareUrl: null,
+			totalCommits: 0,
+			commits: [],
+			components: [],
+			failures: ["check 'test' did not pass"],
+		});
 		const [{ embed }] = posted();
 		expect(embed.title).toBe('⛔ gaminginit-bot blocked from production');
 		expect(embed.description).toContain('Tried by **octocat**');
@@ -153,14 +162,22 @@ describe('POST /ship', () => {
 			...report,
 			product: long.slice(0, 300),
 			totalCommits: 500,
-			commits: Array.from({ length: 10 }, (_, i) => ({ sha: `sha${i}`, message: long, author: long.slice(0, 100), url: `https://github.com/c/${i}` })),
+			commits: Array.from({ length: 10 }, (_, i) => ({
+				sha: `sha${i}`,
+				message: long,
+				author: long.slice(0, 100),
+				url: `https://github.com/c/${i}`,
+			})),
 			components: Array.from({ length: 30 }, (_, i) => ({ name: `component-${i}-${long.slice(0, 200)}`, status: 'failed', detail: long })),
 			failures: [long, long],
 		});
 		const [{ embed }] = posted();
-		const author = (embed as unknown as { author: { name: string }; footer: { text: string } });
+		const author = embed as unknown as { author: { name: string }; footer: { text: string } };
 		const total =
-			embed.title.length + embed.description.length + author.author.name.length + author.footer.text.length +
+			embed.title.length +
+			embed.description.length +
+			author.author.name.length +
+			author.footer.text.length +
 			embed.fields.reduce((n, f) => n + f.name.length + f.value.length, 0);
 		expect(total).toBeLessThanOrEqual(6000);
 		expect(embed.title.length).toBeLessThanOrEqual(256);

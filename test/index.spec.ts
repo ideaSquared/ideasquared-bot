@@ -28,7 +28,7 @@ const send = async (path: string, event: string, payload: unknown, secret = SECR
 			body,
 			headers: { 'X-GitHub-Event': event, 'X-Hub-Signature-256': await sign(secret, body) },
 		}),
-		e
+		e,
 	);
 };
 
@@ -122,7 +122,7 @@ describe('ideaSquared bot', () => {
 
 	it('still succeeds if one channel fails, and reports to bot-logs', async () => {
 		fetchMock.mockImplementation(async (url: string) =>
-			String(url).includes('ads-releases-id') ? new Response('nope', { status: 403 }) : new Response('{}', { status: 200 })
+			String(url).includes('ads-releases-id') ? new Response('nope', { status: 403 }) : new Response('{}', { status: 200 }),
 		);
 		const res = await send('/ads', 'release', release);
 		expect(res.status).toBe(200);
@@ -132,7 +132,7 @@ describe('ideaSquared bot', () => {
 	it('retries once after a 429, honouring retry_after', async () => {
 		let calls = 0;
 		fetchMock.mockImplementation(async () =>
-			calls++ === 0 ? new Response(JSON.stringify({ retry_after: 0 }), { status: 429 }) : new Response('{}', { status: 200 })
+			calls++ === 0 ? new Response(JSON.stringify({ retry_after: 0 }), { status: 429 }) : new Response('{}', { status: 200 }),
 		);
 		const res = await send('/ads', 'pull_request', pr);
 		expect(res.status).toBe(200);
@@ -149,7 +149,7 @@ describe('ideaSquared bot', () => {
 	it('console-logs a fixed message with the event code and the caught error, not the free-text report', async () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		fetchMock.mockImplementation(async (url: string) =>
-			String(url).includes('ads-releases-id') ? new Response('secret-detail', { status: 403 }) : new Response('{}', { status: 200 })
+			String(url).includes('ads-releases-id') ? new Response('secret-detail', { status: 403 }) : new Response('{}', { status: 200 }),
 		);
 		await send('/ads', 'release', release);
 		const lines = spy.mock.calls.map(([line]) => JSON.parse(String(line)));
@@ -158,8 +158,11 @@ describe('ideaSquared bot', () => {
 			expect.objectContaining({
 				message: 'bot-logs report',
 				meta: { event: 'webhook-delivery-failed' },
-				error: expect.objectContaining({ type: 'Error', message: expect.stringContaining('Discord 403 sending to channel ads-releases-id') }),
-			})
+				error: expect.objectContaining({
+					type: 'Error',
+					message: expect.stringContaining('Discord 403 sending to channel ads-releases-id'),
+				}),
+			}),
 		);
 		expect(lines.every((line) => !line.message.includes('ads'))).toBe(true);
 	});
@@ -169,7 +172,7 @@ describe('ideaSquared bot', () => {
 		fetchMock.mockImplementation(async (url: string) =>
 			String(url).includes('ads-releases-id') || String(url).includes('logs-id')
 				? new Response('secret-detail', { status: 403 })
-				: new Response('{}', { status: 200 })
+				: new Response('{}', { status: 200 }),
 		);
 		await send('/ads', 'release', release);
 		const lines = spy.mock.calls.map(([line]) => JSON.parse(String(line)));

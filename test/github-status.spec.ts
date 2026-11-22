@@ -35,7 +35,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
 	feed = [];
 	fetchMock = vi.fn(async (url: string) =>
-		url.includes('githubstatus.com') ? Response.json({ incidents: feed }) : new Response(JSON.stringify({ id: 'm' }), { status: 200 })
+		url.includes('githubstatus.com') ? Response.json({ incidents: feed }) : new Response(JSON.stringify({ id: 'm' }), { status: 200 }),
 	);
 	globalThis.fetch = fetchMock as unknown as typeof fetch;
 });
@@ -44,7 +44,11 @@ type Embed = { title: string; description: string; color: number; fields: { name
 const posts = () =>
 	fetchMock.mock.calls
 		.filter(([url]) => String(url).includes('discord.com'))
-		.map(([url, init]) => ({ url: String(url), embed: (JSON.parse(String((init as RequestInit).body)) as { embeds?: Embed[] }).embeds?.[0], body: String((init as RequestInit).body) }));
+		.map(([url, init]) => ({
+			url: String(url),
+			embed: (JSON.parse(String((init as RequestInit).body)) as { embeds?: Embed[] }).embeds?.[0],
+			body: String((init as RequestInit).body),
+		}));
 
 describe('checkGitHubStatus', () => {
 	it('on the first run posts only incidents still open', async () => {
@@ -67,7 +71,17 @@ describe('checkGitHubStatus', () => {
 		await checkGitHubStatus(env, { BOT_STATE: kv });
 		expect(posts()).toHaveLength(0);
 
-		feed = [incident('b', [{ id: 'v1', status: 'investigating' }]), incident('a', [{ id: 'u2', status: 'resolved' }, { id: 'u1', status: 'investigating' }], true)];
+		feed = [
+			incident('b', [{ id: 'v1', status: 'investigating' }]),
+			incident(
+				'a',
+				[
+					{ id: 'u2', status: 'resolved' },
+					{ id: 'u1', status: 'investigating' },
+				],
+				true,
+			),
+		];
 		fetchMock.mockClear();
 		await checkGitHubStatus(env, { BOT_STATE: kv });
 		// Oldest incident first.
@@ -79,7 +93,7 @@ describe('checkGitHubStatus', () => {
 		const kv = fakeKv();
 		kv.store.set('github-status', JSON.stringify({ seen: { a: 'u1' } }));
 		fetchMock.mockImplementation(async (url: string) =>
-			url.includes('githubstatus.com') ? new Response('down', { status: 503 }) : new Response('{}', { status: 200 })
+			url.includes('githubstatus.com') ? new Response('down', { status: 503 }) : new Response('{}', { status: 200 }),
 		);
 		await checkGitHubStatus(env, { BOT_STATE: kv });
 		expect(posts().map((p) => p.url)).toEqual(['https://discord.com/api/v10/channels/logs-id/messages']);

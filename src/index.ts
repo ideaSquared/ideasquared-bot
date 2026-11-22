@@ -1,4 +1,17 @@
-import { CLOUDFLARE_BUILDS_APP_SLUG, ChannelKind, DOMAIN_CRON, GITHUB_STATUS_CRON, ENABLED_EVENTS, EVENT_ROUTES, Env, GitHubEventType, PROJECTS, Project, channelEnvVar, secretEnvVar } from './config';
+import {
+	CLOUDFLARE_BUILDS_APP_SLUG,
+	ChannelKind,
+	DOMAIN_CRON,
+	GITHUB_STATUS_CRON,
+	ENABLED_EVENTS,
+	EVENT_ROUTES,
+	Env,
+	GitHubEventType,
+	PROJECTS,
+	Project,
+	channelEnvVar,
+	secretEnvVar,
+} from './config';
 import {
 	ALERT_SECRET_ENV_VAR,
 	ALERT_SIGNATURE_HEADER,
@@ -99,7 +112,7 @@ const deployOutcome = (payload: GitHubWebhookPayload, eventType: GitHubEventType
 	eventType === 'deployment_status'
 		? payload.deployment_status?.state
 		: eventType === 'check_run'
-			? payload.check_run?.conclusion ?? undefined
+			? (payload.check_run?.conclusion ?? undefined)
 			: undefined;
 
 const createDiscordEmbed = (payload: GitHubWebhookPayload, eventType: GitHubEventType, project: Project) => {
@@ -120,7 +133,7 @@ const createDiscordEmbed = (payload: GitHubWebhookPayload, eventType: GitHubEven
 									name: 'Latest Commit',
 									value: `[\`${payload.commits[0].id.substring(0, 7)}\`](${payload.commits[0].url}): ${payload.commits[0].message}`,
 								},
-						  ]
+							]
 						: []),
 				];
 			case 'pull_request':
@@ -254,7 +267,12 @@ const handleShip = async (request: Request, env: Env): Promise<Response> => {
 	try {
 		await updateBoard(env, token, report);
 	} catch (error) {
-		await logToBotLogs(env, 'ship-board-failed', `Ship board update failed: ${error instanceof Error ? error.message : String(error)}`, error);
+		await logToBotLogs(
+			env,
+			'ship-board-failed',
+			`Ship board update failed: ${error instanceof Error ? error.message : String(error)}`,
+			error,
+		);
 	}
 	return new Response('Ship report posted', { status: 200 });
 };
@@ -380,7 +398,8 @@ export default {
 		const projectPath = new URL(request.url).pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
 		if (projectPath === 'ship') return handleShip(request, env);
 		if (projectPath === 'alert') return handleAlert(request, env);
-		if (projectPath.startsWith('alert/alertmanager/')) return handleAlertmanager(request, env, projectPath.slice('alert/alertmanager/'.length));
+		if (projectPath.startsWith('alert/alertmanager/'))
+			return handleAlertmanager(request, env, projectPath.slice('alert/alertmanager/'.length));
 		const project = PROJECTS[projectPath];
 		if (!project) {
 			return new Response('Unknown project', { status: 404 });
@@ -448,10 +467,7 @@ export default {
 			}
 
 			// Only Cloudflare Workers Builds check runs, once completed (CI test runs etc. are ignored)
-			if (
-				eventType === 'check_run' &&
-				(payload.action !== 'completed' || payload.check_run?.app?.slug !== CLOUDFLARE_BUILDS_APP_SLUG)
-			) {
+			if (eventType === 'check_run' && (payload.action !== 'completed' || payload.check_run?.app?.slug !== CLOUDFLARE_BUILDS_APP_SLUG)) {
 				return new Response('Check run ignored', { status: 200 });
 			}
 
@@ -467,15 +483,26 @@ export default {
 			// Partial config: still deliver to what's configured, but flag what's missing
 			const missing = EVENT_ROUTES[eventType].filter((k) => !channels.some((c) => c.kind === k));
 			if (missing.length > 0) {
-				await logToBotLogs(env, 'webhook-missing-channels', `${project.name} ${eventType}: missing ${missing.map((k) => channelEnvVar(project, k)).join(', ')}`);
+				await logToBotLogs(
+					env,
+					'webhook-missing-channels',
+					`${project.name} ${eventType}: missing ${missing.map((k) => channelEnvVar(project, k)).join(', ')}`,
+				);
 			}
 
 			const body = createDiscordEmbed(payload, eventType, project);
 			const results = await Promise.allSettled(channels.map((c) => postToChannel(token, c.id, body)));
 
-			const failures = results.flatMap((r, i) => (r.status === 'rejected' ? [`${channels[i].kind}: ${r.reason instanceof Error ? r.reason.message : r.reason}`] : []));
+			const failures = results.flatMap((r, i) =>
+				r.status === 'rejected' ? [`${channels[i].kind}: ${r.reason instanceof Error ? r.reason.message : r.reason}`] : [],
+			);
 			if (failures.length > 0) {
-				await logToBotLogs(env, 'webhook-delivery-failed', `${project.name} ${eventType} delivery failed — ${failures.join('; ')}`, results.find((r) => r.status === 'rejected')?.reason);
+				await logToBotLogs(
+					env,
+					'webhook-delivery-failed',
+					`${project.name} ${eventType} delivery failed — ${failures.join('; ')}`,
+					results.find((r) => r.status === 'rejected')?.reason,
+				);
 			}
 			if (failures.length === channels.length) {
 				return new Response('Error sending message to Discord', { status: 502 });

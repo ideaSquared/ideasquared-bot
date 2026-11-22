@@ -6,21 +6,21 @@ Cloudflare Worker that receives GitHub webhooks and posts them to Discord **as t
 
 One GitHub webhook per project, pointing at `https://<worker>/<project>`:
 
-| Path | Project |
-| --- | --- |
-| `/ads` | AdoptDontShop |
-| `/pairflix` | Pairflix |
-| `/creatrgrid` | CreatrGrid |
+| Path          | Project                                                               |
+| ------------- | --------------------------------------------------------------------- |
+| `/ads`        | AdoptDontShop                                                         |
+| `/pairflix`   | Pairflix                                                              |
+| `/creatrgrid` | CreatrGrid                                                            |
 | `/gaminginit` | GamingInit (`gaminginit` + `gaminginit-bot` repos share this webhook) |
 
 Events → channels (see `src/config.ts`):
 
-| Event | Channels |
-| --- | --- |
-| `pull_request`, `issues` (and push/discussion/star/fork if enabled) | `<project>-github` (private) |
-| `release` (published) | `<project>-releases` (public) + `<project>-github` |
-| `deployment_status` (success / failure / error) | `<project>-github` |
-| `check_run` (completed, Cloudflare Workers Builds only) | `<project>-github` |
+| Event                                                               | Channels                                           |
+| ------------------------------------------------------------------- | -------------------------------------------------- |
+| `pull_request`, `issues` (and push/discussion/star/fork if enabled) | `<project>-github` (private)                       |
+| `release` (published)                                               | `<project>-releases` (public) + `<project>-github` |
+| `deployment_status` (success / failure / error)                     | `<project>-github`                                 |
+| `check_run` (completed, Cloudflare Workers Builds only)             | `<project>-github`                                 |
 
 Deployments: subscribe the webhook to **Deployment statuses** if the repo deploys via a GitHub Actions job with an `environment`, or **Check runs** if it deploys via Cloudflare Workers Builds.
 
@@ -63,7 +63,13 @@ alert to `<project>-github` (private) with an `@everyone` mention, as an embed t
 ⚠️ (warning, amber), the details as the description and the source and project in the footer.
 
 ```json
-{ "project": "creatrgrid", "severity": "critical", "title": "Sync queue is failing", "details": "optional, max 1500", "source": "optional, max 100, e.g. the service name" }
+{
+	"project": "creatrgrid",
+	"severity": "critical",
+	"title": "Sync queue is failing",
+	"details": "optional, max 1500",
+	"source": "optional, max 100, e.g. the service name"
+}
 ```
 
 - `project` must be a key of `PROJECTS`, `severity` is `critical` or `warning`, `title` is 1-200 characters; unknown keys are ignored.
@@ -100,21 +106,21 @@ Channel IDs (not secret; `wrangler.jsonc` `vars` or secrets):
 - `DISCORD_CHANNEL_<PROJECT>_<KIND>` where KIND is `PUBLIC`, `RELEASES`, `DEVELOPMENT`, `GITHUB`, `INTERNAL`
 - `DISCORD_CHANNEL_BOT_LOGS`
 
-| Variable | Channel ID |
-| --- | --- |
-| `DISCORD_CHANNEL_ADS_GITHUB` | `1568708022765883533` |
-| `DISCORD_CHANNEL_ADS_RELEASES` | `1568707993326067864` |
-| `DISCORD_CHANNEL_PAIRFLIX_GITHUB` | `1568708231511937185` |
-| `DISCORD_CHANNEL_PAIRFLIX_RELEASES` | `1568708218782482442` |
-| `DISCORD_CHANNEL_CREATRGRID_GITHUB` | `1568708444318601386` |
+| Variable                              | Channel ID            |
+| ------------------------------------- | --------------------- |
+| `DISCORD_CHANNEL_ADS_GITHUB`          | `1568708022765883533` |
+| `DISCORD_CHANNEL_ADS_RELEASES`        | `1568707993326067864` |
+| `DISCORD_CHANNEL_PAIRFLIX_GITHUB`     | `1568708231511937185` |
+| `DISCORD_CHANNEL_PAIRFLIX_RELEASES`   | `1568708218782482442` |
+| `DISCORD_CHANNEL_CREATRGRID_GITHUB`   | `1568708444318601386` |
 | `DISCORD_CHANNEL_CREATRGRID_RELEASES` | `1568708410692739153` |
-| `DISCORD_CHANNEL_GAMINGINIT_GITHUB` | `1568967721838977064` |
+| `DISCORD_CHANNEL_GAMINGINIT_GITHUB`   | `1568967721838977064` |
 | `DISCORD_CHANNEL_GAMINGINIT_RELEASES` | `1568967675726790677` |
-| `DISCORD_CHANNEL_IDEASQUARED_GITHUB` | `1570920349070004234` |
-| `DISCORD_CHANNEL_SHIP_STATUS` | `1570920375708287046` |
-| `DISCORD_CHANNEL_BOT_LOGS` | `1568708548605771797` |
-| `DISCORD_CHANNEL_DOMAIN_ALERTS` | `1568741669954654338` |
-| `DISCORD_CHANNEL_GITHUB_STATUS` | `1570181749642891386` |
+| `DISCORD_CHANNEL_IDEASQUARED_GITHUB`  | `1570920349070004234` |
+| `DISCORD_CHANNEL_SHIP_STATUS`         | `1570920375708287046` |
+| `DISCORD_CHANNEL_BOT_LOGS`            | `1568708548605771797` |
+| `DISCORD_CHANNEL_DOMAIN_ALERTS`       | `1568741669954654338` |
+| `DISCORD_CHANNEL_GITHUB_STATUS`       | `1570181749642891386` |
 
 The bot needs **View Channel** and **Send Messages** (plus **Embed Links**) on each channel it posts to, granted via category permissions.
 

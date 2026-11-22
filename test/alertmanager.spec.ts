@@ -35,7 +35,7 @@ const send = (payload: unknown, auth: string | null = `Bearer ${SECRET}`, projec
 			body: JSON.stringify(payload),
 			headers: auth ? { Authorization: auth } : {},
 		}),
-		e
+		e,
 	);
 
 type Message = {

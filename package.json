@@ -12,6 +12,8 @@
     "start": "wrangler dev",
     "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest",
     "cf-typegen": "wrangler types"
   },
@@ -19,6 +21,7 @@
     "@cloudflare/vitest-plugin": "^1.6.0",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.15.0",
+    "prettier": "^3.10.1",
     "typescript": "^7.0.2",
     "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.0",
