@@ -21,7 +21,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       # Dependabot bumps the shipper SHA in a `uses:` line but not the matching `shipper-ref:` input, so
       # a bump would run the new workflow with the old shipper scripts. Every pin must be the same SHA.
       - name: shipper pins match
@@ -31,8 +31,8 @@ jobs:
             echo "::error::Every shipper pin in .github/workflows (each uses: line and each shipper-ref input) must be the same commit SHA. Found: $(echo $refs)"
             exit 1
           fi
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: pnpm
