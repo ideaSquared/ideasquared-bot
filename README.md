@@ -95,7 +95,7 @@ Secrets (`wrangler secret put <NAME>`):
 - `ALERT_SECRET` – shared secret for product alerts (`POST /alert`)
 - `GITHUB_WEBHOOK_SECRET_<PROJECT>` – per-project GitHub webhook secret (`ADS`, `PAIRFLIX`, `CREATRGRID`, `GAMINGINIT`, `IDEASQUARED`); set the same value in that repo's webhook settings. Requests without a valid `X-Hub-Signature-256` are rejected.
 
-Channel IDs (not secret; `wrangler.json` `vars` or secrets):
+Channel IDs (not secret; `wrangler.jsonc` `vars` or secrets):
 
 - `DISCORD_CHANNEL_<PROJECT>_<KIND>` where KIND is `PUBLIC`, `RELEASES`, `DEVELOPMENT`, `GITHUB`, `INTERNAL`
 - `DISCORD_CHANNEL_BOT_LOGS`
@@ -134,8 +134,8 @@ pnpm exec wrangler kv key get --binding DOMAIN_WATCH history --remote
 
 Setup:
 
-- `DISCORD_CHANNEL_DOMAIN_ALERTS` – channel ID for alerts (`wrangler.json` `vars`)
-- `DOMAIN_WATCH` KV namespace – created automatically on `wrangler deploy` (or create it with `pnpm exec wrangler kv namespace create DOMAIN_WATCH` and add the `id` to `wrangler.json`)
+- `DISCORD_CHANNEL_DOMAIN_ALERTS` – channel ID for alerts (`wrangler.jsonc` `vars`)
+- `DOMAIN_WATCH` KV namespace – created automatically on `wrangler deploy` (or create it with `pnpm exec wrangler kv namespace create DOMAIN_WATCH` and add the `id` to `wrangler.jsonc`)
 
 Test the cron locally with `pnpm exec wrangler dev --test-scheduled`, then `curl "http://localhost:8787/__scheduled?cron=*/30+*+*+*+*"`.
 

@@ -87,7 +87,7 @@ const sign = async (body: string) => {
 	return 'sha256=' + [...sig].map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
-// The real board Durable Object from the test runtime (bound in wrangler.json), wiped before each test.
+// The real board Durable Object from the test runtime (bound in wrangler.jsonc), wiped before each test.
 // cloudflare:test types its env from the empty generated interface, so the binding is typed here.
 const SHIP_BOARD = (testEnv as unknown as Required<BoardBindings>).SHIP_BOARD;
 const board = {

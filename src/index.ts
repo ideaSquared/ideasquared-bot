@@ -359,7 +359,7 @@ const resolveChannels = (env: Env, project: Project, kinds: ChannelKind[]): { ki
 };
 
 export default {
-	// Cron trigger (see wrangler.json): domain watcher
+	// Cron trigger (see wrangler.jsonc): domain watcher
 	async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
 		// KV bindings don't fit Env's string index signature, so they're read separately
 		if (controller.cron === DOMAIN_CRON) ctx.waitUntil(checkDomain(env, env as unknown as DomainBindings));
