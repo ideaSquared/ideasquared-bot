@@ -12,6 +12,6 @@ Cloudflare Worker that posts GitHub and deploy events to Discord (see README).
 
 ## Working rules
 
-- Indent with tabs (`.editorconfig`, `.prettierrc`); YAML uses spaces.
+- Indent with tabs (`.editorconfig`, `.prettierrc`); YAML and `package.json` use spaces.
 - Type-check: `pnpm exec tsc --noEmit` (`pnpm typecheck` also checks `test/`). Lint and format: `pnpm lint`, `pnpm format:check`.
 - Tests: `pnpm test --run` (Vitest in the Workers pool).
