@@ -172,9 +172,18 @@ One-time setup: add `CLOUDFLARE_API_TOKEN` (Cloudflare's **Edit Cloudflare Worke
 
 Secrets set with `wrangler secret put` stay in place across deploys.
 
-## Dev
+## Development
+
+Needs Node 24 (`.nvmrc`) and pnpm (`corepack enable`). Copy `.dev.vars.example` to `.dev.vars` and fill in the secrets for `pnpm dev`.
 
 ```bash
-pnpm test              # watch mode; CI runs pnpm exec vitest run
-pnpm exec tsc --noEmit
+pnpm install
+pnpm dev               # wrangler dev
+pnpm test              # watch mode; CI runs pnpm test --run
+pnpm typecheck
+pnpm lint
+pnpm format:check      # pnpm format fixes it
+pnpm cf-typegen        # after changing wrangler.jsonc
 ```
+
+Commits follow Conventional Commits (checked by commitlint in a husky `commit-msg` hook).
