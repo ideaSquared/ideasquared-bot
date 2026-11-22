@@ -15,12 +15,16 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.15.0",
+    "husky": "^9.1.7",
     "prettier": "^3.10.1",
     "typescript": "^7.0.2",
     "typescript-eslint": "^8.73.0",
