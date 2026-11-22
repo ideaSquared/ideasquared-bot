@@ -28,7 +28,7 @@ const send = async (payload: unknown, secret = SECRET, e: Record<string, string>
 	const body = JSON.stringify(payload);
 	return worker.fetch(
 		new Request('http://example.com/alert', { method: 'POST', body, headers: { 'X-Alert-Signature-256': await sign(secret, body) } }),
-		e
+		e,
 	);
 };
 
@@ -109,7 +109,7 @@ describe('POST /alert', () => {
 		const body = 'not json';
 		const res = await worker.fetch(
 			new Request('http://example.com/alert', { method: 'POST', body, headers: { 'X-Alert-Signature-256': await sign(SECRET, body) } }),
-			env
+			env,
 		);
 		expect(res.status).toBe(400);
 	});
@@ -123,7 +123,7 @@ describe('POST /alert', () => {
 
 	it('answers 502 and reports to #bot-logs when Discord fails', async () => {
 		fetchMock.mockImplementation(async (url: string) =>
-			String(url).includes('/channels/cg-github-id/') ? new Response('boom', { status: 500 }) : new Response('{}', { status: 200 })
+			String(url).includes('/channels/cg-github-id/') ? new Response('boom', { status: 500 }) : new Response('{}', { status: 200 }),
 		);
 		const res = await send(alert);
 		expect(res.status).toBe(502);
@@ -134,7 +134,7 @@ describe('POST /alert', () => {
 	it("keeps Discord's response body out of the console log and #bot-logs, giving only the status", async () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		fetchMock.mockImplementation(async (url: string) =>
-			String(url).includes('/channels/cg-github-id/') ? new Response('secret-body', { status: 500 }) : new Response('{}', { status: 200 })
+			String(url).includes('/channels/cg-github-id/') ? new Response('secret-body', { status: 500 }) : new Response('{}', { status: 200 }),
 		);
 		await send(alert);
 		const lines = spy.mock.calls.map(([line]) => JSON.parse(String(line)));

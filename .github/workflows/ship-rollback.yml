@@ -14,6 +14,14 @@ on:
         required: true
         type: string
 
+# Rollbacks to one environment run one at a time and are never cut off.
+concurrency:
+  group: ship-rollback-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   rollback:
     permissions:

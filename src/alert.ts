@@ -41,9 +41,7 @@ const Labels = z.record(z.string(), z.string());
 export const AlertmanagerSchema = z.object({
 	status: z.enum(['firing', 'resolved']),
 	commonLabels: Labels.default({}),
-	alerts: z
-		.array(z.object({ status: z.enum(['firing', 'resolved']), labels: Labels.default({}), annotations: Labels.default({}) }))
-		.min(1),
+	alerts: z.array(z.object({ status: z.enum(['firing', 'resolved']), labels: Labels.default({}), annotations: Labels.default({}) })).min(1),
 });
 
 export type AlertmanagerPayload = z.infer<typeof AlertmanagerSchema>;
@@ -86,7 +84,7 @@ export const verifyBearer = async (secret: string, header: string | null): Promi
 	if (!match) return false;
 	const encoder = new TextEncoder();
 	const [given, expected] = await Promise.all(
-		[match[1], secret].map(async (v) => new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(v))))
+		[match[1], secret].map(async (v) => new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(v)))),
 	);
 	return crypto.subtle.timingSafeEqual(given, expected);
 };

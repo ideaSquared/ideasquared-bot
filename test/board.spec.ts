@@ -71,7 +71,11 @@ describe('renderBoard limits', () => {
 		).reduce(applyReport, empty);
 		const [embed] = renderBoard(state, new Date()).embeds;
 		const fields = embed?.fields ?? [];
-		const total = fields.reduce((n, f) => n + f.name.length + f.value.length, 0) + (embed?.title.length ?? 0) + (embed?.description.length ?? 0) + (embed?.footer.text.length ?? 0);
+		const total =
+			fields.reduce((n, f) => n + f.name.length + f.value.length, 0) +
+			(embed?.title.length ?? 0) +
+			(embed?.description.length ?? 0) +
+			(embed?.footer.text.length ?? 0);
 		expect(total).toBeLessThanOrEqual(6000);
 		expect(fields.length).toBeLessThanOrEqual(25);
 		expect(fields.every((f) => f.name.length <= 256 && f.value.length <= 1024)).toBe(true);
@@ -87,12 +91,13 @@ const sign = async (body: string) => {
 	return 'sha256=' + [...sig].map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
-// The real board Durable Object from the test runtime (bound in wrangler.json), wiped before each test.
+// The real board Durable Object from the test runtime (bound in wrangler.jsonc), wiped before each test.
 // cloudflare:test types its env from the empty generated interface, so the binding is typed here.
 const SHIP_BOARD = (testEnv as unknown as Required<BoardBindings>).SHIP_BOARD;
 const board = {
 	namespace: SHIP_BOARD,
-	seed: (state: BoardState) => runInDurableObject(SHIP_BOARD.getByName('board'), (_o: ShipBoard, ctx) => ctx.storage.put('ship-board', state)),
+	seed: (state: BoardState) =>
+		runInDurableObject(SHIP_BOARD.getByName('board'), (_o: ShipBoard, ctx) => ctx.storage.put('ship-board', state)),
 	saved: () => runInDurableObject(SHIP_BOARD.getByName('board'), (_o: ShipBoard, ctx) => ctx.storage.get<BoardState>('ship-board')),
 };
 

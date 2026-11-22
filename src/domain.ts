@@ -101,7 +101,9 @@ export const diffSnapshots = (prev: Snapshot, next: Snapshot): string[] => {
 	// First successful listing fetch (e.g. after the baseline run failed) is itself a change
 	if (!prev.listing && next.listing) {
 		const l = next.listing;
-		changes.push(`Listing: none → ${l.isForSale ? 'for sale' : 'not for sale'}, buy now ${money(l.buyNow)}, min bid ${money(l.minBid)}, seller ${l.seller ?? 'none'}`);
+		changes.push(
+			`Listing: none → ${l.isForSale ? 'for sale' : 'not for sale'}, buy now ${money(l.buyNow)}, min bid ${money(l.minBid)}, seller ${l.seller ?? 'none'}`,
+		);
 	} else if (prev.listing && next.listing) {
 		cmp('For sale', String(prev.listing.isForSale), String(next.listing.isForSale));
 		cmp('Buy now price', money(prev.listing.buyNow), money(next.listing.buyNow));
@@ -128,10 +130,17 @@ const buildAlert = (domain: string, s: Snapshot, changes: string[]) => {
 		{ name: 'Changes', value: changes.join('\n').slice(0, 1024) },
 	];
 	if (s.registered) {
-		fields.push({ name: 'Expiry', value: s.expiresAt ?? 'unknown', inline: true }, { name: 'Registrar', value: s.registrar ?? 'unknown', inline: true });
+		fields.push(
+			{ name: 'Expiry', value: s.expiresAt ?? 'unknown', inline: true },
+			{ name: 'Registrar', value: s.registrar ?? 'unknown', inline: true },
+		);
 	}
 	if (s.listing?.isForSale) {
-		fields.push({ name: 'Listing', value: `[Buy now ${money(s.listing.buyNow)} · min bid ${money(s.listing.minBid)}](${listingUrl(domain)})`, inline: false });
+		fields.push({
+			name: 'Listing',
+			value: `[Buy now ${money(s.listing.buyNow)} · min bid ${money(s.listing.minBid)}](${listingUrl(domain)})`,
+			inline: false,
+		});
 	}
 	return {
 		embeds: [
@@ -151,7 +160,11 @@ export const checkDomain = async (env: Env, bindings: DomainBindings): Promise<v
 	const token = env.DISCORD_BOT_TOKEN;
 	const channelId = env[DOMAIN_ALERTS_ENV_VAR];
 	if (!kv || !token || !channelId) {
-		await logToBotLogs(env, 'domain-misconfigured', `Domain watcher misconfigured: need DOMAIN_WATCH KV, DISCORD_BOT_TOKEN and ${DOMAIN_ALERTS_ENV_VAR}`);
+		await logToBotLogs(
+			env,
+			'domain-misconfigured',
+			`Domain watcher misconfigured: need DOMAIN_WATCH KV, DISCORD_BOT_TOKEN and ${DOMAIN_ALERTS_ENV_VAR}`,
+		);
 		return;
 	}
 

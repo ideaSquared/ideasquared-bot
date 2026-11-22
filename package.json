@@ -2,26 +2,35 @@
   "name": "ideasquared-bot",
   "version": "0.0.0",
   "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  },
   "packageManager": "pnpm@10.34.3",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",
-    "@cloudflare/workers-types": "^5.20261107.1",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.10.1",
     "typescript": "^7.0.2",
+    "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.0",
     "wrangler": "^4.158.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "workerd"
-    ]
   },
   "dependencies": {
     "@ideasquared/log": "https://github.com/ideaSquared/agent-idea/releases/download/log-v0.1.1/ideasquared-log-0.1.1.tgz",

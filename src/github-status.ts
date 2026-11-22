@@ -87,9 +87,7 @@ export const newUpdates = (incidents: readonly Incident[], state: StatusState | 
 	});
 
 export const nextState = (incidents: readonly Incident[]): StatusState => ({
-	seen: Object.fromEntries(
-		incidents.flatMap((i) => (i.incident_updates[0] ? [[i.id, i.incident_updates[0].id] as const] : []))
-	),
+	seen: Object.fromEntries(incidents.flatMap((i) => (i.incident_updates[0] ? [[i.id, i.incident_updates[0].id] as const] : []))),
 });
 
 export const checkGitHubStatus = async (env: Env, bindings: StatusBindings): Promise<void> => {
@@ -110,6 +108,11 @@ export const checkGitHubStatus = async (env: Env, bindings: StatusBindings): Pro
 		}
 		await kv.put(STATE_KEY, JSON.stringify(nextState(incidents)));
 	} catch (error) {
-		await logToBotLogs(env, 'github-status-failed', `GitHub status check failed: ${error instanceof Error ? error.message : String(error)}`, error);
+		await logToBotLogs(
+			env,
+			'github-status-failed',
+			`GitHub status check failed: ${error instanceof Error ? error.message : String(error)}`,
+			error,
+		);
 	}
 };

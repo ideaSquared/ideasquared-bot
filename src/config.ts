@@ -26,15 +26,7 @@ export const PROJECTS: Record<string, Project> = {
 };
 
 export type GitHubEventType =
-	| 'push'
-	| 'pull_request'
-	| 'issues'
-	| 'discussion'
-	| 'star'
-	| 'fork'
-	| 'release'
-	| 'deployment_status'
-	| 'check_run';
+	'push' | 'pull_request' | 'issues' | 'discussion' | 'star' | 'fork' | 'release' | 'deployment_status' | 'check_run';
 
 // Which channels each event goes to. Only releases are public; everything else stays private.
 export const EVENT_ROUTES: Record<GitHubEventType, ChannelKind[]> = {
@@ -70,8 +62,7 @@ export interface Env {
 	[key: string]: string | undefined;
 }
 
-export const channelEnvVar = (project: Project, kind: ChannelKind): string =>
-	`DISCORD_CHANNEL_${project.key}_${kind.toUpperCase()}`;
+export const channelEnvVar = (project: Project, kind: ChannelKind): string => `DISCORD_CHANNEL_${project.key}_${kind.toUpperCase()}`;
 
 export const secretEnvVar = (project: Project): string => `GITHUB_WEBHOOK_SECRET_${project.key}`;
 

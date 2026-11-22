@@ -22,7 +22,18 @@ const rdap = (over: { status?: string[]; expiration?: string; ns?: string[] } = 
 		{ eventAction: 'expiration', eventDate: over.expiration ?? '2027-03-01T15:33:50Z' },
 	],
 	nameservers: (over.ns ?? ['NS3.AFTERNIC.COM']).map((ldhName) => ({ ldhName })),
-	entities: [{ roles: ['registrar'], vcardArray: ['vcard', [['version', {}, 'text', '4.0'], ['fn', {}, 'text', 'GoDaddy.com, LLC']]] }],
+	entities: [
+		{
+			roles: ['registrar'],
+			vcardArray: [
+				'vcard',
+				[
+					['version', {}, 'text', '4.0'],
+					['fn', {}, 'text', 'GoDaddy.com, LLC'],
+				],
+			],
+		},
+	],
 });
 
 const afternic = (buyNow = 5_000_000_000) =>
@@ -35,7 +46,9 @@ let listingRes: () => Response;
 let fetchMock: ReturnType<typeof vi.fn>;
 
 const posts = (channel: string) =>
-	fetchMock.mock.calls.filter(([url]) => String(url).includes(`/channels/${channel}/`)).map(([, init]) => JSON.parse((init as RequestInit).body as string));
+	fetchMock.mock.calls
+		.filter(([url]) => String(url).includes(`/channels/${channel}/`))
+		.map(([, init]) => JSON.parse((init as RequestInit).body as string));
 
 beforeEach(() => {
 	rdapRes = () => Response.json(rdap());

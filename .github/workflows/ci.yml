@@ -7,9 +7,10 @@ on:
   workflow_dispatch:
 
 # Runs on master go one at a time, in the order they were pushed, so an older commit never deploys after a newer one.
+# A newer push to a pull request cancels the older run.
 concurrency:
-  group: ${{ github.ref == 'refs/heads/master' && 'master' || github.run_id }}
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -20,8 +21,11 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       # Dependabot bumps the shipper SHA in a `uses:` line but not the matching `shipper-ref:` input, so
       # a bump would run the new workflow with the old shipper scripts. Every pin must be the same SHA.
       - name: shipper pins match
@@ -31,14 +35,18 @@ jobs:
             echo "::error::Every shipper pin in .github/workflows (each uses: line and each shipper-ref input) must be the same commit SHA. Found: $(echo $refs)"
             exit 1
           fi
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec tsc --noEmit
-      - run: pnpm exec vitest run
+      - run: pnpm format:check
+      - run: pnpm lint
+      # Fails when worker-configuration.d.ts no longer matches wrangler.jsonc (run `pnpm cf-typegen`).
+      - run: pnpm exec wrangler types --check
+      - run: pnpm typecheck
+      - run: pnpm test --run
       # Server code logs through @ideasquared/log, never console (see .claude/skills/logging).
       # A justified exception carries `// logging-exempt: <reason>` on the same line.
       - name: No console calls in server code
@@ -48,7 +56,8 @@ jobs:
             exit 1
           fi
       # Builds the Worker as a deploy does, without deploying it.
-      - run: pnpm exec wrangler deploy --dry-run
+      - name: build
+        run: pnpm exec wrangler deploy --dry-run
 
   # Deploys master through ideaSquared/shipper once the tests pass: gate, wrangler deploy, /health check
   # (rolls back if it fails). See ship.yaml.

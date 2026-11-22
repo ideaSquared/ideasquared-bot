@@ -1,0 +1,5 @@
+node_modules
+.wrangler
+pnpm-lock.yaml
+worker-configuration.d.ts
+.claude/skills/logging/SKILL.md

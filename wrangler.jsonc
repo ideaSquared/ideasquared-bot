@@ -19,22 +19,22 @@
 		"DISCORD_CHANNEL_SHIP_STATUS": "1570920375708287046",
 		"DISCORD_CHANNEL_GITHUB_STATUS": "1570181749642891386",
 		"DISCORD_CHANNEL_BOT_LOGS": "1568708548605771797",
-		"DISCORD_CHANNEL_DOMAIN_ALERTS": "1568741669954654338"
+		"DISCORD_CHANNEL_DOMAIN_ALERTS": "1568741669954654338",
 	},
 	"observability": {
 		"logs": {
-		"enabled": true,
-		"head_sampling_rate": 1,
-		"invocation_logs": true,
-		"persist": true
+			"enabled": true,
+			"head_sampling_rate": 1,
+			"invocation_logs": true,
+			"persist": true,
 		},
 		"traces": {
-		"enabled": false,
-		"head_sampling_rate": 1,
-		"persist": true
+			"enabled": false,
+			"head_sampling_rate": 1,
+			"persist": true,
 		},
 		"issue_detection": {
-		"enabled": false
-		}
-	}
+			"enabled": false,
+		},
+	},
 }

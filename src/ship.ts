@@ -52,7 +52,13 @@ export const invalidReason = (value: unknown): string | undefined => {
 	const componentsOk =
 		Array.isArray(value.components) &&
 		value.components.every(
-			(c) => isObject(c) && isString(c.name) && isString(c.status) && STATUSES.includes(c.status) && isOptionalString(c.url) && isOptionalString(c.detail),
+			(c) =>
+				isObject(c) &&
+				isString(c.name) &&
+				isString(c.status) &&
+				STATUSES.includes(c.status) &&
+				isOptionalString(c.url) &&
+				isOptionalString(c.detail),
 		);
 	if (!componentsOk) return 'components are malformed';
 	if (!Array.isArray(value.failures) || !value.failures.every(isString)) return 'failures are malformed';

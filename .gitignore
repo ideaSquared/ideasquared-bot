@@ -99,6 +99,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+.env.*
+!.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
 
@@ -169,4 +171,6 @@ dist
 # wrangler project
 
 .dev.vars
+.dev.vars.*
+!.dev.vars.example
 .wrangler/
