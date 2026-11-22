@@ -38,6 +38,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Fails when worker-configuration.d.ts no longer matches wrangler.jsonc (run `pnpm cf-typegen`).
+      - run: pnpm exec wrangler types --check
       - run: pnpm exec tsc --noEmit
       - run: pnpm exec vitest run
       # Server code logs through @ideasquared/log, never console (see .claude/skills/logging).
