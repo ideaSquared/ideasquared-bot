@@ -7,9 +7,10 @@ on:
   workflow_dispatch:
 
 # Runs on master go one at a time, in the order they were pushed, so an older commit never deploys after a newer one.
+# A newer push to a pull request cancels the older run.
 concurrency:
-  group: ${{ github.ref == 'refs/heads/master' && 'master' || github.run_id }}
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
