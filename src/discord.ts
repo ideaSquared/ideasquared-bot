@@ -66,14 +66,16 @@ const sendMessage = async (token: string, url: string, method: string, body: unk
 };
 
 // Best-effort error report to #bot-logs; never throws. `event` is a fixed code for the console log; the
-// free-text `message` only goes to Discord.
+// free-text `message` only goes to Discord. A DiscordError is logged by its HTTP status only: its message
+// carries Discord's response body, which can echo what was posted.
 export const logToBotLogs = async (env: Env, event: string, message: string, error?: unknown): Promise<void> => {
-	log.error('bot-logs report', { event }, error);
+	if (error instanceof DiscordError) log.error('bot-logs report', { event, status: error.status });
+	else log.error('bot-logs report', { event }, error);
 	const token = env.DISCORD_BOT_TOKEN;
 	const channelId = env[BOT_LOGS_ENV_VAR];
 	if (!token || !channelId) return;
 	try {
-		await postToChannel(token, channelId, { content: `⚠️ ${message}`.slice(0, 2000) });
+		await postToChannel(token, channelId, { content: `⚠️ ${message}`.slice(0, 2000), allowed_mentions: { parse: [] } });
 	} catch {
 		log.warn('bot-logs post failed', { event });
 	}
