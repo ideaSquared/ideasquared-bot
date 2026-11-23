@@ -146,7 +146,7 @@ describe('ideaSquared bot', () => {
 		expect(postedChannels().sort()).toEqual(['ads-github-id', 'logs-id']);
 	});
 
-	it('console-logs a fixed message with the event code and the caught error, not the free-text report', async () => {
+	it('console-logs a failed Discord delivery with its event code and HTTP status only, not the response body', async () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		fetchMock.mockImplementation(async (url: string) =>
 			String(url).includes('ads-releases-id') ? new Response('secret-detail', { status: 403 }) : new Response('{}', { status: 200 }),
@@ -154,17 +154,23 @@ describe('ideaSquared bot', () => {
 		await send('/ads', 'release', release);
 		const lines = spy.mock.calls.map(([line]) => JSON.parse(String(line)));
 		spy.mockRestore();
-		expect(lines).toContainEqual(
-			expect.objectContaining({
-				message: 'bot-logs report',
-				meta: { event: 'webhook-delivery-failed' },
-				error: expect.objectContaining({
-					type: 'Error',
-					message: expect.stringContaining('Discord 403 sending to channel ads-releases-id'),
-				}),
-			}),
-		);
+		const reports = lines.filter((line) => line.message === 'bot-logs report');
+		expect(reports).toContainEqual(expect.objectContaining({ meta: { event: 'webhook-delivery-failed', status: 403 } }));
+		expect(reports.every((line) => line.error === undefined)).toBe(true);
+		expect(JSON.stringify(lines)).not.toContain('secret-detail');
 		expect(lines.every((line) => !line.message.includes('ads'))).toBe(true);
+	});
+
+	it('posts #bot-logs reports with mentions disabled', async () => {
+		fetchMock.mockImplementation(async (url: string) =>
+			String(url).includes('ads-releases-id') ? new Response('nope', { status: 403 }) : new Response('{}', { status: 200 }),
+		);
+		await send('/ads', 'release', release);
+		const logPosts = fetchMock.mock.calls.filter(([url]) => String(url).includes('/channels/logs-id/'));
+		expect(logPosts.length).toBeGreaterThan(0);
+		for (const [, init] of logPosts) {
+			expect(JSON.parse(String((init as RequestInit).body)).allowed_mentions).toEqual({ parse: [] });
+		}
 	});
 
 	it('console-logs a failed bot-logs post with its event code only, no error detail', async () => {
